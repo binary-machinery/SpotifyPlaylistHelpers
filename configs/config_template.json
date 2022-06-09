@@ -1,0 +1,11 @@
+{
+  "server": {
+    "port": 3000,
+    "secret_key": "...",
+    "host": "..."
+  },
+  "spotify": {
+    "client_id": "...",
+    "client_secret": "..."
+  }
+}
