@@ -5,17 +5,26 @@ from flask import Response
 from flask import redirect
 from flask import render_template
 from flask import request
+from flask_login import LoginManager, login_user, current_user
 
 from config_loader import ConfigLoader
 from spotify_api import SpotifyAuth, SpotifyApi
+from users import User, UsersDb
 
 config = ConfigLoader.load()
 
 app = Flask(__name__)
 app.secret_key = config["server"]["secret_key"]
 
-access_token = None
-user = None
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+users_db = UsersDb()
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return users_db.get_user(user_id)
 
 
 @app.route("/api/ping", methods=["GET", "POST"])
@@ -25,9 +34,9 @@ def handle_ping():
 
 @app.route("/", methods=["GET"])
 def index():
-    global user
-    if access_token:
-        response = SpotifyApi(access_token).get("/me")
+    user = None
+    if current_user.is_authenticated:
+        response = SpotifyApi(current_user.access_token).get("/me")
         if response.ok:
             user = response.json()["display_name"]
     return render_template("index.html", user=user)
@@ -55,8 +64,19 @@ def auth_callback():
     if not response.ok:
         return Response(response.text, status=response.status_code)
 
-    global access_token
     access_token = response.json().get("access_token")
+    refresh_token = response.json().get("refresh_token")
+
+    response = SpotifyApi(access_token).get("/me")
+    if response.ok:
+        user = User(
+            response.json()["id"],
+            access_token,
+            refresh_token
+        )
+        users_db.set_user(user)
+        login_user(user, remember=True)
+
     return redirect("/")
 
 
