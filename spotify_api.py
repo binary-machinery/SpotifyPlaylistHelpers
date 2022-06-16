@@ -1,4 +1,5 @@
 import base64
+import urllib.parse
 
 import requests
 
@@ -33,7 +34,9 @@ class SpotifyApi:
         self.api_url = "https://api.spotify.com/v1"
         self.access_token = access_token
 
-    def get(self, endpoint):
-        return requests.get(self.api_url + endpoint, headers={
+    def get(self, endpoint, params=None):
+        if params is None:
+            params = {}
+        return requests.get(f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}", headers={
             "Authorization": f"Bearer {self.access_token}"
         })

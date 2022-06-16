@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New releases for playlist</title>
+</head>
+<body>
+<h2>New releases</h2>
+{% for artist, albums in releases.items() %}
+    <h3><a href="{{ artist.link }}">{{ artist.name }} (latest: {{ latest_dates[artist] }})</a></h3>
+    <ul>
+        {% for album in albums %}
+            <li>{{ album.date }} - <a href="{{ album.link }}">{{ album.name }}</a></li>
+        {% endfor %}
+    </ul>
+{% endfor %}
+</body>
+</html>

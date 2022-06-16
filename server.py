@@ -5,9 +5,10 @@ from flask import Response
 from flask import redirect
 from flask import render_template
 from flask import request
-from flask_login import LoginManager, login_user, current_user
+from flask_login import LoginManager, login_user, current_user, login_required
 
 from config_loader import ConfigLoader
+from features.playlist_new_releases import PlaylistNewReleases
 from spotify_api import SpotifyAuth, SpotifyApi
 from users import User, UsersDb
 
@@ -40,6 +41,21 @@ def index():
         if response.ok:
             user = response.json()["display_name"]
     return render_template("index.html", user=user)
+
+
+@app.route("/playlist_new_releases/select_playlist", methods=["GET"])
+@login_required
+def playlist_new_releases_select_playlist():
+    playlists = PlaylistNewReleases(current_user.access_token).get_playlists()
+    return render_template("playlist_selector.html", playlists=playlists, callback="/playlist_new_releases")
+
+
+@app.route("/playlist_new_releases", methods=["GET"])
+@login_required
+def playlist_new_releases_releases():
+    playlist_id = request.args.get("id")
+    latest_dates, releases = PlaylistNewReleases(current_user.access_token).get_new_releases_for_playlist(playlist_id)
+    return render_template("playlist_new_releases.html", latest_dates=latest_dates, releases=releases)
 
 
 @app.route("/auth", methods=["GET"])
