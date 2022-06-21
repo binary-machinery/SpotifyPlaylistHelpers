@@ -130,7 +130,7 @@ class SpotifyApi:
             params["offset"] = offset
             response = self.get(endpoint, params)
             if not response.ok:
-                return items
+                raise Exception(f"{response.status_code}: {response.text}")
 
             json = response.json()
             items.extend(json["items"])
@@ -182,7 +182,7 @@ class SpotifyApi:
         response = self.get("/me/playlists")
         playlists = []
         if not response.ok:
-            return playlists
+            raise Exception(f"{response.status_code}: {response.text}")
 
         for playlist_json in response.json()["items"]:
             playlist = Playlist(
@@ -197,7 +197,7 @@ class SpotifyApi:
     def get_playlist(self, playlist_id):
         response = self.get(f"/playlists/{playlist_id}?fields=id,name,owner(display_name)")
         if not response.ok:
-            return None, None
+            raise Exception(f"{response.status_code}: {response.text}")
 
         json = response.json()
         playlist = Playlist(
