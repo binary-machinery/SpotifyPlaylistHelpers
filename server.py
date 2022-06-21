@@ -52,7 +52,7 @@ def playlist_new_releases_select_playlist():
 @app.route("/playlist_new_releases", methods=["GET"])
 @login_required
 def playlist_new_releases():
-    playlist_id = request.args.get("id")
+    playlist_id = request.args.get("playlist_id")
     latest_dates, releases = SpotifyApi(current_user.access_token).get_new_releases_for_playlist(playlist_id)
     return render_template("playlist_new_releases.html", latest_dates=latest_dates, releases=releases)
 
@@ -68,7 +68,7 @@ def add_artist_to_playlist_select_playlist():
 @app.route("/add_artist_to_playlist/select_artist", methods=["GET"])
 @login_required
 def add_artist_to_playlist_select_artist():
-    playlist_id = request.args.get("id")
+    playlist_id = request.args.get("playlist_id")
     return render_template("add_artist_to_playlist_select_artist.html",
                            playlist_id=playlist_id)
 

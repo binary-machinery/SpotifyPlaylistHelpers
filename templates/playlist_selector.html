@@ -8,7 +8,7 @@
 <h2>Select playlist</h2>
 <ul>
     {% for playlist in playlists %}
-        <li><a href="{{ callback }}?id={{ playlist.id }}">{{ playlist.name }} (owner: {{ playlist.owner }})</a></li>
+        <li><a href="{{ callback }}?playlist_id={{ playlist.id }}">{{ playlist.name }} (owner: {{ playlist.owner }})</a></li>
     {% endfor %}
 </ul>
 </body>

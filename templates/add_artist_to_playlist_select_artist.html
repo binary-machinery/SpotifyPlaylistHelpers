@@ -8,7 +8,7 @@
 <h2>Add artist</h2>
 {% if done %}
     <div>Done</div>
-    <div><a href="/">Back</a></div>
+    <div><a href="/add_artist_to_playlist/select_artist?playlist_id={{ playlist_id }}">Back</a></div>
 {% else %}
     <form action="/add_artist_to_playlist">
         <label for="playlist_id">Playlist ID</label>
