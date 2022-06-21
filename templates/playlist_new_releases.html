@@ -10,7 +10,7 @@
     <h3><a href="{{ artist.link }}">{{ artist.name }} (latest: {{ latest_dates[artist] }})</a></h3>
     <ul>
         {% for album in albums %}
-            <li>{{ album.date }} - <a href="{{ album.link }}">{{ album.name }}</a></li>
+            <li>{{ album.release_date }} - <a href="{{ album.link }}">{{ album.name }}</a></li>
         {% endfor %}
     </ul>
 {% endfor %}

@@ -57,6 +57,32 @@ def playlist_new_releases():
     return render_template("playlist_new_releases.html", latest_dates=latest_dates, releases=releases)
 
 
+@app.route("/add_artist_to_playlist/select_playlist", methods=["GET"])
+@login_required
+def add_artist_to_playlist_select_playlist():
+    playlists = SpotifyApi(current_user.access_token).get_playlists()
+    return render_template("playlist_selector.html",
+                           playlists=playlists, callback="/add_artist_to_playlist/select_artist")
+
+
+@app.route("/add_artist_to_playlist/select_artist", methods=["GET"])
+@login_required
+def add_artist_to_playlist_select_artist():
+    playlist_id = request.args.get("id")
+    return render_template("add_artist_to_playlist_select_artist.html",
+                           playlist_id=playlist_id)
+
+
+@app.route("/add_artist_to_playlist", methods=["GET"])
+@login_required
+def add_artist_to_playlist():
+    playlist_id = request.args.get("playlist_id")
+    artist_id = request.args.get("artist_id")
+    SpotifyApi(current_user.access_token).add_artist_to_playlist(playlist_id, artist_id)
+    return render_template("add_artist_to_playlist_select_artist.html",
+                           playlist_id=playlist_id, artist_id=artist_id, done=True)
+
+
 @app.route("/auth", methods=["GET"])
 def auth():
     auth_url = "https://accounts.spotify.com/authorize?"

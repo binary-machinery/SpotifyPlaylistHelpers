@@ -1,5 +1,6 @@
 import base64
 import datetime
+import json
 import urllib.parse
 from dataclasses import dataclass
 
@@ -27,7 +28,7 @@ class Artist:
 class Album:
     id: str
     name: str
-    date: datetime
+    release_date: datetime
     link: str
 
 
@@ -195,7 +196,7 @@ class SpotifyApi:
         for track in tracks:
             if track.artists[0].id is None:
                 continue
-            latest = max(track.album.date, result.get(track.artists[0], datetime.datetime.fromtimestamp(0)))
+            latest = max(track.album.release_date, result.get(track.artists[0], datetime.datetime.fromtimestamp(0)))
             result[track.artists[0]] = latest
         return result
 
@@ -228,3 +229,44 @@ class SpotifyApi:
                 result[artist].append(album)
 
         return latest_dates, result
+
+    def add_artist_to_playlist(self, playlist_id, artist_id):
+        items = self.get_paginated_items(
+            endpoint=f"/artists/{artist_id}/albums",
+            params={
+                "market": "FI",
+                "include_groups": "album,single"
+            },
+            limit=20
+        )
+
+        albums = []
+        for album_json in items:
+            album = Album(
+                album_json["id"],
+                album_json["name"],
+                self._parse_album_date(album_json),
+                album_json["external_urls"]["spotify"]
+            )
+            albums.append(album)
+
+        albums.sort(key=lambda x: x.release_date)
+        track_uris = []
+        for album in albums:
+            items = self.get_paginated_items(
+                f"/albums/{album.id}/tracks",
+                params={
+                    "market": "FI"
+                },
+                limit=50
+            )
+
+            for track_json in items:
+                track_uris.append(track_json["uri"])
+
+        for i in range(0, len(track_uris), 100):
+            chunk = track_uris[i:i + 100]
+            self.post(
+                f"/playlists/{playlist_id}/tracks",
+                data=json.dumps({"uris": chunk})
+            )
