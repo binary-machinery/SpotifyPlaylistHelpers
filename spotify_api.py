@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import requests
 
+from users import User
+
 
 @dataclass
 class Playlist:
@@ -64,21 +66,60 @@ class SpotifyAuth:
             }
         )
 
+    def refresh_token(self, refresh_token):
+        return requests.post(
+            self.api_url + "/token",
+            headers=self.headers,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token
+            }
+        )
+
 
 class SpotifyApi:
-    def __init__(self, access_token):
+    def __init__(self, config, users_db, access_token, refresh_token):
         self.api_url = "https://api.spotify.com/v1"
+        self.config = config
+        self.users_db = users_db
         self.access_token = access_token
+        self.refresh_token = refresh_token
+
+    def _refresh_token(self):
+        auth_response = SpotifyAuth(self.config).refresh_token(self.refresh_token)
+        if auth_response.ok:
+            self.access_token = auth_response.json().get("access_token")
+            self.refresh_token = auth_response.json().get("refresh_token", self.refresh_token)
+            response = self.get("/me")
+            if response.ok:
+                user = User(
+                    response.json()["id"],
+                    self.access_token,
+                    self.refresh_token
+                )
+                self.users_db.set_user(user)
 
     def get(self, endpoint, params=None):
         if params is None:
             params = {}
-        return requests.get(
+
+        response = requests.get(
             f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
             headers={
                 "Authorization": f"Bearer {self.access_token}"
             }
         )
+
+        if not response.ok and response.status_code == 401:
+            self._refresh_token()
+            response = requests.get(
+                f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
+                headers={
+                    "Authorization": f"Bearer {self.access_token}"
+                }
+            )
+
+        return response
 
     def get_paginated_items(self, endpoint, params, limit):
         params["limit"] = limit
@@ -103,7 +144,8 @@ class SpotifyApi:
     def post(self, endpoint, params=None, data=None):
         if params is None:
             params = {}
-        return requests.post(
+
+        response = requests.post(
             f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
             headers={
                 "Authorization": f"Bearer {self.access_token}",
@@ -111,6 +153,19 @@ class SpotifyApi:
             },
             data=data
         )
+
+        if not response.ok and response.status_code == 401:
+            self._refresh_token()
+            response = requests.post(
+                f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
+                headers={
+                    "Authorization": f"Bearer {self.access_token}",
+                    "Content-Type": "application/json"
+                },
+                data=data
+            )
+
+        return response
 
     @staticmethod
     def _parse_album_date(album_json):

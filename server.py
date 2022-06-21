@@ -36,7 +36,7 @@ def handle_ping():
 def index():
     user = None
     if current_user.is_authenticated:
-        response = SpotifyApi(current_user.access_token).get("/me")
+        response = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get("/me")
         if response.ok:
             user = response.json()["display_name"]
     return render_template("index.html", user=user)
@@ -45,7 +45,7 @@ def index():
 @app.route("/playlist_new_releases/select_playlist", methods=["GET"])
 @login_required
 def playlist_new_releases_select_playlist():
-    playlists = SpotifyApi(current_user.access_token).get_playlists()
+    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html", playlists=playlists, callback="/playlist_new_releases")
 
 
@@ -53,14 +53,15 @@ def playlist_new_releases_select_playlist():
 @login_required
 def playlist_new_releases():
     playlist_id = request.args.get("playlist_id")
-    latest_dates, releases = SpotifyApi(current_user.access_token).get_new_releases_for_playlist(playlist_id)
+    latest_dates, releases = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+        .get_new_releases_for_playlist(playlist_id)
     return render_template("playlist_new_releases.html", latest_dates=latest_dates, releases=releases)
 
 
 @app.route("/add_artist_to_playlist/select_playlist", methods=["GET"])
 @login_required
 def add_artist_to_playlist_select_playlist():
-    playlists = SpotifyApi(current_user.access_token).get_playlists()
+    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html",
                            playlists=playlists, callback="/add_artist_to_playlist/select_artist")
 
@@ -78,7 +79,8 @@ def add_artist_to_playlist_select_artist():
 def add_artist_to_playlist():
     playlist_id = request.args.get("playlist_id")
     artist_id = request.args.get("artist_id")
-    SpotifyApi(current_user.access_token).add_artist_to_playlist(playlist_id, artist_id)
+    SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+        .add_artist_to_playlist(playlist_id, artist_id)
     return render_template("add_artist_to_playlist_select_artist.html",
                            playlist_id=playlist_id, artist_id=artist_id, done=True)
 
@@ -108,7 +110,7 @@ def auth_callback():
     access_token = response.json().get("access_token")
     refresh_token = response.json().get("refresh_token")
 
-    response = SpotifyApi(access_token).get("/me")
+    response = SpotifyApi(config, users_db, access_token, refresh_token).get("/me")
     if response.ok:
         user = User(
             response.json()["id"],
