@@ -46,7 +46,7 @@ def index():
 @login_required
 def playlist_new_releases_select_playlist():
     playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
-    return render_template("playlist_selector.html", playlists=playlists, callback="/playlist_new_releases")
+    return render_template("playlist_selector.html", playlists=playlists, callback="/playlist_new_releases?")
 
 
 @app.route("/playlist_new_releases", methods=["GET"])
@@ -63,7 +63,7 @@ def playlist_new_releases():
 def add_artist_to_playlist_select_playlist():
     playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html",
-                           playlists=playlists, callback="/add_artist_to_playlist/select_artist")
+                           playlists=playlists, callback="/add_artist_to_playlist/select_artist?")
 
 
 @app.route("/add_artist_to_playlist/select_artist", methods=["GET"])
@@ -81,8 +81,40 @@ def add_artist_to_playlist():
     artist_id = request.args.get("artist_id")
     SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
         .add_artist_to_playlist(playlist_id, artist_id)
-    return render_template("add_artist_to_playlist_select_artist.html",
-                           playlist_id=playlist_id, artist_id=artist_id, done=True)
+    return render_template("result.html",
+                           callback=f"/add_artist_to_playlist/select_artist?playlist_id={playlist_id}")
+
+
+@app.route("/subtract_playlist/select_playlist1", methods=["GET"])
+@login_required
+def subtract_playlist_select_playlist1():
+    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    return render_template("playlist_selector.html",
+                           playlists=playlists,
+                           header="Select playlist 1",
+                           callback="/subtract_playlist/select_playlist2?")
+
+
+@app.route("/subtract_playlist/select_playlist2", methods=["GET"])
+@login_required
+def subtract_playlist_select_playlist2():
+    playlist_id1 = request.args.get("playlist_id")
+    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    return render_template("playlist_selector.html",
+                           playlists=playlists,
+                           header="Select playlist 2",
+                           callback=f"/subtract_playlist?playlist_id1={playlist_id1}&")
+
+
+@app.route("/subtract_playlist", methods=["GET"])
+@login_required
+def subtract_playlist():
+    playlist_id1 = request.args.get("playlist_id1")
+    playlist_id2 = request.args.get("playlist_id")
+    SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+        .subtract_playlist(playlist_id1, playlist_id2)
+    return render_template("result.html",
+                           callback="/")
 
 
 @app.route("/auth", methods=["GET"])

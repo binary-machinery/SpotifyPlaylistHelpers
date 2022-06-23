@@ -5,10 +5,16 @@
     <title>Select playlist</title>
 </head>
 <body>
-<h2>Select playlist</h2>
+{% if header %}
+    <h2>{{ header }}</h2>
+{% else %}
+    <h2>Select playlist</h2>
+{% endif %}
 <ul>
     {% for playlist in playlists %}
-        <li><a href="{{ callback }}?playlist_id={{ playlist.id }}">{{ playlist.name }} (owner: {{ playlist.owner }})</a></li>
+        <li>
+            <a href="{{ callback }}playlist_id={{ playlist.id }}">{{ playlist.name }} (owner: {{ playlist.owner }})</a>
+        </li>
     {% endfor %}
 </ul>
 </body>

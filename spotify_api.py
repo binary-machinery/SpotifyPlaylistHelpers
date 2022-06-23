@@ -130,7 +130,9 @@ class SpotifyApi:
     def delete(self, endpoint, params=None, data=None, retry=True):
         return self._http(requests.delete, endpoint, params, data, retry)
 
-    def get_paginated_items(self, endpoint, params, limit):
+    def get_paginated_items(self, endpoint, params=None, limit=20):
+        if params is None:
+            params = {}
         params["limit"] = limit
         has_data = True
         offset = 0
@@ -308,3 +310,22 @@ class SpotifyApi:
                 f"/playlists/{playlist_id}/tracks",
                 data=json.dumps({"uris": chunk})
             )
+
+    def subtract_playlist(self, playlist_id1, playlist_id2):
+        items = self.get_paginated_items(
+            f"/playlists/{playlist_id2}/tracks",
+            limit=50
+        )
+
+        track_jsons = []
+        for item in items:
+            track_json = {"uri": item["track"]["uri"]}
+            track_jsons.append(track_json)
+
+        for i in range(0, len(track_jsons), 100):
+            chunk = track_jsons[i:i + 100]
+            response = self.delete(
+                f"/playlists/{playlist_id1}/tracks",
+                data=json.dumps({"tracks": chunk})
+            )
+            print(response.text)
