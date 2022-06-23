@@ -306,10 +306,12 @@ class SpotifyApi:
 
         for i in range(0, len(track_uris), 100):
             chunk = track_uris[i:i + 100]
-            self.post(
+            response = self.post(
                 f"/playlists/{playlist_id}/tracks",
                 data=json.dumps({"uris": chunk})
             )
+            if not response.ok:
+                raise Exception(f"{response.status_code}: {response.text}")
 
     def subtract_playlist(self, playlist_id1, playlist_id2):
         items = self.get_paginated_items(
@@ -328,7 +330,8 @@ class SpotifyApi:
                 f"/playlists/{playlist_id1}/tracks",
                 data=json.dumps({"tracks": chunk})
             )
-            print(response.text)
+            if not response.ok:
+                raise Exception(f"{response.status_code}: {response.text}")
 
     def filter_playlist(self, user_id, playlist_id, keyword):
         response = self.get(f"/playlists/{playlist_id}")
@@ -362,7 +365,64 @@ class SpotifyApi:
         tmp_playlist_id = response.json()["id"]
         for i in range(0, len(track_uris), 100):
             chunk = track_uris[i:i + 100]
-            self.post(
+            response = self.post(
                 f"/playlists/{tmp_playlist_id}/tracks",
                 data=json.dumps({"uris": chunk})
             )
+            if not response.ok:
+                raise Exception(f"{response.status_code}: {response.text}")
+
+    def filter_duplicates(self, user_id, playlist_id):
+        response = self.get(f"/playlists/{playlist_id}")
+        if not response.ok:
+            raise Exception(f"{response.status_code}: {response.text}")
+
+        playlist_name = response.json()["name"]
+
+        items = self.get_paginated_items(
+            f"/playlists/{playlist_id}/tracks",
+            limit=50
+        )
+
+        track_uris = []
+        for i in range(0, len(items)):
+            track_i = items[i]["track"]
+            for j in range(i + 1, len(items)):
+                track_j = items[j]["track"]
+                if len(track_i["artists"]) != len(track_j["artists"]):
+                    continue
+                for k in range(0, len(track_i["artists"])):
+                    if track_i["artists"][k]["id"] != track_j["artists"][k]["id"]:
+                        continue
+                if track_i["name"] == track_j["name"]:
+                    release_date_i = self._parse_album_date(track_i["album"])
+                    release_date_j = self._parse_album_date(track_j["album"])
+                    if release_date_i < release_date_j:
+                        if track_i["uri"] not in track_uris:
+                            track_uris.append(track_i["uri"])
+                    else:
+                        if track_j["uri"] not in track_uris:
+                            track_uris.append(track_j["uri"])
+                    continue
+
+        response = self.post(
+            f"/users/{user_id}/playlists",
+            data=json.dumps(
+                {
+                    "name": f"delivery-duplicates-{playlist_name}",
+                    "public": False
+                }
+            )
+        )
+        if not response.ok:
+            raise Exception(f"{response.status_code}: {response.text}")
+
+        tmp_playlist_id = response.json()["id"]
+        for i in range(0, len(track_uris), 100):
+            chunk = track_uris[i:i + 100]
+            response = self.post(
+                f"/playlists/{tmp_playlist_id}/tracks",
+                data=json.dumps({"uris": chunk})
+            )
+            if not response.ok:
+                raise Exception(f"{response.status_code}: {response.text}")
