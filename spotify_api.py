@@ -99,27 +99,36 @@ class SpotifyApi:
                 )
                 self.users_db.set_user(user)
 
-    def get(self, endpoint, params=None):
+    def _http(self, function, endpoint, params=None, data=None, retry=True):
         if params is None:
             params = {}
 
-        response = requests.get(
+        response = function(
             f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
             headers={
-                "Authorization": f"Bearer {self.access_token}"
-            }
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json"
+            },
+            data=data
         )
 
-        if not response.ok and response.status_code == 401:
+        if not response.ok and response.status_code == 401 and retry:
             self._refresh_token()
-            response = requests.get(
-                f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
-                headers={
-                    "Authorization": f"Bearer {self.access_token}"
-                }
-            )
+            response = self._http(function, endpoint, params, retry=False)
 
         return response
+
+    def get(self, endpoint, params=None, data=None, retry=True):
+        return self._http(requests.get, endpoint, params, data, retry)
+
+    def post(self, endpoint, params=None, data=None, retry=True):
+        return self._http(requests.post, endpoint, params, data, retry)
+
+    def put(self, endpoint, params=None, data=None, retry=True):
+        return self._http(requests.put, endpoint, params, data, retry)
+
+    def delete(self, endpoint, params=None, data=None, retry=True):
+        return self._http(requests.delete, endpoint, params, data, retry)
 
     def get_paginated_items(self, endpoint, params, limit):
         params["limit"] = limit
@@ -140,32 +149,6 @@ class SpotifyApi:
                 offset += limit
 
         return items
-
-    def post(self, endpoint, params=None, data=None):
-        if params is None:
-            params = {}
-
-        response = requests.post(
-            f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
-            headers={
-                "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json"
-            },
-            data=data
-        )
-
-        if not response.ok and response.status_code == 401:
-            self._refresh_token()
-            response = requests.post(
-                f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
-                headers={
-                    "Authorization": f"Bearer {self.access_token}",
-                    "Content-Type": "application/json"
-                },
-                data=data
-            )
-
-        return response
 
     @staticmethod
     def _parse_album_date(album_json):
