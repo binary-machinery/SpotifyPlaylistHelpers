@@ -329,3 +329,40 @@ class SpotifyApi:
                 data=json.dumps({"tracks": chunk})
             )
             print(response.text)
+
+    def filter_playlist(self, user_id, playlist_id, keyword):
+        response = self.get(f"/playlists/{playlist_id}")
+        if not response.ok:
+            raise Exception(f"{response.status_code}: {response.text}")
+
+        playlist_name = response.json()["name"]
+
+        items = self.get_paginated_items(
+            f"/playlists/{playlist_id}/tracks",
+            limit=50
+        )
+
+        track_uris = []
+        for item in items:
+            if keyword in item["track"]["name"].lower():
+                track_uris.append(item["track"]["uri"])
+
+        response = self.post(
+            f"/users/{user_id}/playlists",
+            data=json.dumps(
+                {
+                    "name": f"delivery-{keyword}-{playlist_name}",
+                    "public": False
+                }
+            )
+        )
+        if not response.ok:
+            raise Exception(f"{response.status_code}: {response.text}")
+
+        tmp_playlist_id = response.json()["id"]
+        for i in range(0, len(track_uris), 100):
+            chunk = track_uris[i:i + 100]
+            self.post(
+                f"/playlists/{tmp_playlist_id}/tracks",
+                data=json.dumps({"uris": chunk})
+            )

@@ -117,6 +117,27 @@ def subtract_playlist():
                            callback="/")
 
 
+@app.route("/delivery/filter/select_playlist", methods=["GET"])
+@login_required
+def delivery_filter_select_playlist():
+    keyword = request.args.get("keyword")
+    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    return render_template("playlist_selector.html",
+                           playlists=playlists,
+                           callback=f"/delivery/filter?keyword={keyword}&")
+
+
+@app.route("/delivery/filter", methods=["GET"])
+@login_required
+def delivery_filter():
+    playlist_id = request.args.get("playlist_id")
+    keyword = request.args.get("keyword")
+    SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+        .filter_playlist(current_user.user_id, playlist_id, keyword)
+    return render_template("result.html",
+                           callback="/")
+
+
 @app.route("/auth", methods=["GET"])
 def auth():
     auth_url = "https://accounts.spotify.com/authorize?"
