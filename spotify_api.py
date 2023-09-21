@@ -277,6 +277,8 @@ class SpotifyApi:
                     result[artist] = []
                 result[artist].append(album)
 
+        for artist_result in result.values():
+            artist_result.sort(key=lambda album: album.release_date)
         return latest_dates, result
 
     def add_artist_to_playlist(self, playlist_id, artist_id):
