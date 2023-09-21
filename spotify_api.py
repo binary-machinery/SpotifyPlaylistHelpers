@@ -164,18 +164,27 @@ class SpotifyApi:
             return datetime.datetime.fromtimestamp(0)
 
     def get_playlists(self):
-        response = self.get("/me/playlists")
+        has_data = True
+        offset = 0
         playlists = []
-        if not response.ok:
-            raise Exception(f"{response.status_code}: {response.text}")
+        while has_data:
+            response = self.get("/me/playlists", {"offset": offset})
+            if not response.ok:
+                raise Exception(f"{response.status_code}: {response.text}")
 
-        for playlist_json in response.json()["items"]:
-            playlist = Playlist(
-                playlist_json["id"],
-                playlist_json["name"],
-                playlist_json["owner"]["display_name"]
-            )
-            playlists.append(playlist)
+            json = response.json()
+            for playlist_json in json["items"]:
+                playlist = Playlist(
+                    playlist_json["id"],
+                    playlist_json["name"],
+                    playlist_json["owner"]["display_name"]
+                )
+                playlists.append(playlist)
+
+            has_data = False
+            if json["total"] > offset + json["limit"]:
+                offset += json["limit"]
+                has_data = True
 
         return playlists
 
