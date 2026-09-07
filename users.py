@@ -17,7 +17,7 @@ class User(UserMixin):
 
 class UsersDb:
     def __init__(self):
-        self.db_filename = "users"
+        self.db_filename = "users.sqlite"
         self._execute('CREATE TABLE IF NOT EXISTS users ('
                       'id TEXT PRIMARY KEY, '
                       'access_token TEXT, '

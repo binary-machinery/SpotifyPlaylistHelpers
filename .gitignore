@@ -1,5 +1,6 @@
-# do not commit secrets
+# do not commit secrets and working data
 config.json
+users.sqlite
 
 
 
