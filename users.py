@@ -43,4 +43,6 @@ class UsersDb:
 
     def get_user(self, user_id):
         res = self._execute_and_fetch_one('SELECT id, access_token, refresh_token FROM users WHERE id = ?', (user_id,))
+        if res is None:
+            return None
         return User(res[0], res[1], res[2])
