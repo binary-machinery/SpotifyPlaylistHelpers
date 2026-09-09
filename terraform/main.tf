@@ -1,4 +1,12 @@
 terraform {
+  backend "s3" {
+    bucket = "terraform-state-000000000000-us-east-1-an"
+    key = "SPH/terraform.tfstate"
+    region = "us-east-1"
+    use_lockfile = true
+    encrypt = true
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -34,6 +42,11 @@ data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
+  }
+
+  filter {
+    name   = "availability-zone"
+    values = [var.availability_zone]
   }
 }
 
