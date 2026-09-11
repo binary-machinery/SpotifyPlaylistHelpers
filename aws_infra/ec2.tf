@@ -16,6 +16,7 @@ resource "aws_instance" "SPH_machine_01" {
   tags = {
     Name = "SPH-machine-01"
   }
+  iam_instance_profile = aws_iam_instance_profile.SPH_EC2_instance_profile.name
   ami = data.aws_ami.ubuntu.id
   key_name = data.aws_key_pair.SPH_deployer.key_name
   vpc_security_group_ids = [aws_security_group.SPH_security_group.id]
