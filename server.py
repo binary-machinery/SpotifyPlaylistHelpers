@@ -1,7 +1,7 @@
 import urllib.parse
-
 from flask import Flask
 from flask import Response
+from flask import jsonify
 from flask import redirect
 from flask import render_template
 from flask import request
@@ -27,9 +27,9 @@ def load_user(user_id):
     return users_db.get_user(user_id)
 
 
-@app.route("/api/ping", methods=["GET", "POST"])
+@app.route("/health", methods=["GET"])
 def handle_ping():
-    return Response("Pong", status=200)
+    return Response(jsonify({"status": "Healthy"}), status=200)
 
 
 @app.route("/", methods=["GET"])
