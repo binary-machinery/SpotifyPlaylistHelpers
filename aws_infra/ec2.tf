@@ -22,4 +22,6 @@ resource "aws_instance" "application_machine" {
   vpc_security_group_ids = [aws_security_group.application_machine.id]
   subnet_id = sort(data.aws_subnets.default.ids)[0]
   associate_public_ip_address = true
+  user_data = file("${path.module}/scripts/application_machine_provisioning.sh")
+  user_data_replace_on_change = true
 }
