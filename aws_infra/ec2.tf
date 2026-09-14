@@ -7,19 +7,19 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-data "aws_key_pair" "SPH_deployer" {
-  key_name = "SPH-EC2-deployer-key"
+data "aws_key_pair" "maintainer" {
+  key_name = "sph-${var.env}-maintainer-key"
 }
 
-resource "aws_instance" "SPH_machine_01" {
+resource "aws_instance" "application_machine" {
   instance_type = "t2.micro"
   tags = {
-    Name = "SPH-machine-01"
+    Name = "sph-${var.env}-application-machine-01"
   }
-  iam_instance_profile = aws_iam_instance_profile.SPH_EC2_instance_profile.name
+  iam_instance_profile = aws_iam_instance_profile.application.name
   ami = data.aws_ami.ubuntu.id
-  key_name = data.aws_key_pair.SPH_deployer.key_name
-  vpc_security_group_ids = [aws_security_group.SPH_security_group.id]
+  key_name = data.aws_key_pair.maintainer.key_name
+  vpc_security_group_ids = [aws_security_group.application_machine.id]
   subnet_id = sort(data.aws_subnets.default.ids)[0]
   associate_public_ip_address = true
 }

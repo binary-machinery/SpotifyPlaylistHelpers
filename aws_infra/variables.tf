@@ -1,3 +1,13 @@
+variable "env" {
+  type = string
+  nullable = false
+
+  validation {
+    condition = contains(["dev", "prod"], var.env)
+    error_message = "Environment must be dev or prod."
+  }
+}
+
 variable "region" {
   type = string
   default = "us-east-1"

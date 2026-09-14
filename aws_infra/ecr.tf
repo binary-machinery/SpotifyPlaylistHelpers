@@ -1,4 +1,4 @@
-resource "aws_ecr_repository" "spotify_playlist_helpers" {
+resource "aws_ecr_repository" "application" {
   name = "spotify-playlist-helpers"
   image_tag_mutability = "IMMUTABLE_WITH_EXCLUSION"
 
