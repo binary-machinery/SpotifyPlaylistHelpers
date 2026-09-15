@@ -1,11 +1,11 @@
 {
   "server": {
     "port": 3000,
-    "secret_key": "...",
-    "host": "..."
+    "secret_key": "${FLASK_SECRET_KEY}",
+    "host": "${SERVER_HOST}"
   },
   "spotify": {
-    "client_id": "...",
-    "client_secret": "..."
+    "client_id": "${SPOTIFY_CLIENT_ID}",
+    "client_secret": "${SPOTIFY_CLIENT_SECRET}"
   }
 }
