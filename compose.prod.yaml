@@ -1,6 +1,6 @@
 services:
   spotify-playlist-helpers:
-    image: ${ECR_REPOSITORY_URL}:${IMAGE_TAG:-0.1-dev}
+    image: "${ECR_REPOSITORY_URL:?not set - copy .env.example to .env}:${IMAGE_TAG:-0.1-dev}"
     volumes:
       - ./config.json:/app/configs/config.json:ro
     ports:
