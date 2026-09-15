@@ -12,11 +12,19 @@ resource "aws_iam_role" "application" {
         }
     ]
   })
+
+  tags = {
+    Name = "sph-${var.env}-application"
+  }
 }
 
 resource "aws_iam_instance_profile" "application" {
   name = "sph-${var.env}-application"
   role = aws_iam_role.application.name
+
+  tags = {
+    Name = "sph-${var.env}-application"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "allow_ecr_pull" {

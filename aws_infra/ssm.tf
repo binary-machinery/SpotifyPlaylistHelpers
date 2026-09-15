@@ -10,4 +10,8 @@ resource "aws_ssm_parameter" "server_host" {
   # The origin the app builds its Spotify redirect_uri from, so it needs the scheme and
   # no trailing slash. Becomes https:// once the load balancer has a certificate.
   value = "http://${aws_lb.application.dns_name}"
+
+  tags = {
+    Name = "/sph/${var.env}/SERVER_HOST"
+  }
 }

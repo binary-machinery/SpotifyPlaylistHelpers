@@ -6,4 +6,8 @@ resource "aws_ecr_repository" "application" {
     filter = "*-dev"
     filter_type = "WILDCARD"
   }
+
+  tags = {
+    Name = "spotify-playlist-helpers"
+  }
 }

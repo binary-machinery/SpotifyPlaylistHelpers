@@ -21,4 +21,12 @@ terraform {
 
 provider "aws" {
   region = var.region
+
+  default_tags {
+    tags = {
+      Project = "spotify-playlist-helpers"
+      Environment = var.env
+      ManagedBy = "terraform"
+    }
+  }
 }

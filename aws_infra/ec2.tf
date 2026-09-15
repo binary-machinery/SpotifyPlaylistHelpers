@@ -54,6 +54,10 @@ resource "aws_lb_target_group" "application" {
     unhealthy_threshold = 2
   }
 
+  tags = {
+    Name = "sph-${var.env}-application"
+  }
+
   lifecycle {
     create_before_destroy = true
   }
@@ -78,6 +82,10 @@ resource "aws_lb" "application" {
     enabled = true
   }
 
+  tags = {
+    Name = "sph-${var.env}-application"
+  }
+
   # The load balancer test-writes to the bucket on create, which fails unless the delivery policy is already in place.
   depends_on = [aws_s3_bucket_policy.load_balancer_logs]
 }
@@ -90,5 +98,9 @@ resource "aws_lb_listener" "application" {
   default_action {
     type = "forward"
     target_group_arn = aws_lb_target_group.application.arn
+  }
+
+  tags = {
+    Name = "sph-${var.env}-application-http"
   }
 }
