@@ -13,9 +13,20 @@ variable "region" {
   default = "us-east-1"
 }
 
-variable "availability_zone" {
-  type = string
-  default = "us-east-1a"
+variable "availability_zones" {
+  type = list(string)
+  default = ["us-east-1a", "us-east-1b"]
+  nullable = false
+
+  validation {
+    condition = length(var.availability_zones) >= 2
+    error_message = "At least two availability zones are required, the load balancer needs a subnet in each."
+  }
+
+  validation {
+    condition = length(distinct(var.availability_zones)) == length(var.availability_zones)
+    error_message = "availability_zones must not contain duplicates."
+  }
 }
 
 variable "maintainer_machine_cidr" {
