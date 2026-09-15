@@ -24,6 +24,11 @@ resource "aws_instance" "application_machine" {
   associate_public_ip_address = true
   user_data = file("${path.module}/scripts/application_machine_provisioning.sh")
   user_data_replace_on_change = true
+
+  # The security group itself carries no rules, so referencing it is not enough: without
+  # this the instance can launch while the egress rule is still missing, and user_data
+  # dies on the first apt-get with no route out.
+  depends_on = [aws_vpc_security_group_egress_rule.application_all]
 }
 
 
