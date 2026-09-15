@@ -171,3 +171,9 @@ maintainer_machine_cidr = "1.2.3.4/32"
 
 - An EC2 key pair named `sph-<env>-maintainer-key` must already exist in the
   region; Terraform looks it up as a data source rather than creating it.
+
+
+License
+--------------
+
+MIT, see [LICENSE](LICENSE).
