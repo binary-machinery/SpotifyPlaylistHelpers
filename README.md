@@ -3,6 +3,42 @@ SpotifyPlaylistHelpers
 
 A small Flask app with helper tools for managing Spotify playlists.
 
+This is an older app that I created in 2022 to organize my Spotify library. It's not in a production-ready quality,
+I used to run it locally with ngrok when I needed it, it was for personal use only. I'm currently improving it with 
+modern backend practices and technologies.
+
+
+Features
+--------------
+
+- **New releases for a playlist** — for every artist in the playlist, finds the most recent release date among that
+  playlist's tracks, then lists the albums and singles that artist has put out since. A way to catch up on artists you
+  already listen to.
+- **Add an artist to a playlist** — appends every track from an artist's albums and singles to a playlist, oldest
+  release first.
+- **Subtract a playlist from a playlist** — removes from one playlist every track that appears in another.
+- **DeLivery: filter out a keyword** — gathers the tracks whose title contains a keyword (`live`, `instrumental`,
+  `inst.`, `remix`) into a new private playlist named `delivery-<keyword>-<playlist>`. Once you have reviewed it, use
+  "Subtract a playlist from a playlist" to remove those tracks from the original.
+- **DeLivery: filter out duplicates** — the same, for tracks that look like duplicates of each other (same title, same
+  artists), gathering the earlier-released copy of each pair. Currently broken, see `TODO.md`.
+
+Signing in goes through Spotify's OAuth authorization code flow; the app requests the `playlist-read-private`,
+`playlist-modify-private` and `playlist-modify-public` scopes.
+
+
+Roadmap
+--------------
+
+- [**In Progress**] Configure AWS infrastructure
+- [**In Progress**] Configure CI/CD with GitHub Actions
+- [**TODO**] Fix "DeLivery: filter out duplicates"
+- [**TODO**] Use Poetry
+- [**TODO**] Add semantic versioning
+- [**TODO**] Rewrite with FastAPI
+- [**TODO**] Rewrite in Go
+- [**TODO**] Rewrite in Rust
+
 
 Infrastructure
 --------------
