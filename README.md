@@ -123,11 +123,11 @@ under its own key:
 | `dev`  | `backends/dev.s3.tfbackend`        | `sph-dev/terraform.tfstate`  |
 | `prod` | `backends/prod.s3.tfbackend`       | `sph-prod/terraform.tfstate` |
 
-Only the environment-independent settings — region, locking and encryption —
-live in the `backend "s3"` block in `main.tf`. The state key comes from the
-per-environment file and the bucket from a gitignored local file (see below),
-so the block names no state of its own: an `init` without the right
-`-backend-config` flags fails instead of quietly picking a default.
+Only locking and encryption — the settings that hold for anyone deploying this
+— live in the `backend "s3"` block in `main.tf`. The state key comes from the
+per-environment file, and the bucket and its region from a gitignored local
+file (see below), so the block names no state of its own: an `init` without the
+right `-backend-config` flags fails instead of quietly picking a default.
 
 Resource names are suffixed with the environment as well (`sph-dev-*`,
 `sph-prod-*`), driven by the `env` variable.
@@ -180,11 +180,12 @@ for it otherwise:
 maintainer_machine_cidr = "1.2.3.4/32"
 ```
 
-`backends/local.s3.tfbackend` carries the name of the S3 bucket holding the
-remote state:
+`backends/local.s3.tfbackend` carries the S3 bucket holding the remote state
+and the region that bucket lives in:
 
 ```hcl
 bucket = "terraform-state-<account-id>-<region>-<suffix>"
+region = "us-east-1"
 ```
 
 This one is separate from the committed `backends/<env>.s3.tfbackend` files
@@ -194,6 +195,10 @@ targets pass this file and the per-environment key file together, and Terraform
 merges the two into one backend configuration.
 
 ### Prerequisites
+
+- An S3 bucket for the Terraform state must already exist before the first
+  `init`; nothing here creates it. Put its name and region in
+  `backends/local.s3.tfbackend`, as described above.
 
 - An EC2 key pair named `sph-<env>-maintainer-key` must already exist in the
   region; Terraform looks it up as a data source rather than creating it.

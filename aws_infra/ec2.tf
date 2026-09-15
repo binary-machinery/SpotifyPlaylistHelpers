@@ -12,7 +12,7 @@ data "aws_key_pair" "maintainer" {
 }
 
 resource "aws_instance" "application_machine" {
-  instance_type = "t2.micro"
+  instance_type = var.instance_type
   tags = {
     Name = "sph-${var.env}-application-machine-01"
   }

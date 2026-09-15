@@ -1,10 +1,10 @@
 terraform {
   backend "s3" {
-    # Deliberately partial: neither the bucket nor the state key is written here, so
-    # there is no default state for an "init" with the wrong flags to fall back on.
-    # The bucket comes from backends/local.s3.tfbackend (gitignored, account-specific)
-    # and the key from backends/<env>.s3.tfbackend; the Makefile targets pass both.
-    region = "us-east-1"
+    # Deliberately partial: nothing naming or locating the state is written here, so an
+    # "init" with the wrong flags has no default to quietly fall back on. The bucket and
+    # the region it lives in come from backends/local.s3.tfbackend (gitignored, specific
+    # to whoever is deploying) and the state key from backends/<env>.s3.tfbackend; the
+    # Makefile targets pass both. Only the two settings below hold for every deployment.
     use_lockfile = true
     encrypt = true
   }
@@ -16,7 +16,7 @@ terraform {
     }
   }
 
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.10.0"
 }
 
 provider "aws" {

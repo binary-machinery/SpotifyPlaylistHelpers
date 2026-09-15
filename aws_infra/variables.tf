@@ -29,6 +29,16 @@ variable "availability_zones" {
   }
 }
 
+variable "instance_type" {
+  # t2 rather than a current-generation t3/t4g: this is a new account, where the
+  # "Running On-Demand Standard instances" quota is 1 vCPU. That quota counts vCPUs,
+  # and the smallest t3 is t3.micro at 2, so t2.micro at 1 is the only fit. Worth
+  # revisiting once the quota is raised.
+  type = string
+  default = "t2.micro"
+  nullable = false
+}
+
 variable "load_balancer_log_retention_days" {
   type = number
   default = 7
