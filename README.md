@@ -98,6 +98,14 @@ file.
 Rendering the template into `config.json` on the instance is not automated yet — it is part of the in-progress CI/CD
 work, and for now the file is placed on the host manually next to `compose.prod.yaml`.
 
+`compose.prod.yaml` also expects a `.env` file beside it, holding the image to pull. Copy `.env.example` and fill in
+the repository URL from the Terraform output:
+
+```sh
+cp .env.example .env
+cd aws_infra && terraform output -raw ecr_repository_url
+```
+
 
 Infrastructure
 --------------
@@ -115,9 +123,9 @@ under its own key:
 | `dev`  | `backends/dev.s3.tfbackend`        | `sph-dev/terraform.tfstate`  |
 | `prod` | `backends/prod.s3.tfbackend`       | `sph-prod/terraform.tfstate` |
 
-The bucket, region, locking and encryption settings are shared and live in the
+The region, locking and encryption settings are shared and live in the
 `backend "s3"` block in `main.tf`; the per-environment files only override the
-state key.
+state key, and the bucket comes from a gitignored local file (see below).
 
 Resource names are suffixed with the environment as well (`sph-dev-*`,
 `sph-prod-*`), driven by the `env` variable.
@@ -157,15 +165,31 @@ resources into the other's state. And whenever you switch environments, re-run
 the corresponding `make terraform-init-*` target first — otherwise `plan` and
 `apply` keep using the backend from the last `init`.
 
-### Local variables
+### Local files
 
-`maintainer_machine_cidr` (the CIDR allowed to SSH into the application host)
-has no default either. It is read from `aws_infra/local.auto.tfvars`, which is
-gitignored and has to be created locally:
+Two files under `aws_infra/` are gitignored and have to be created locally,
+because they name account-specific things that are kept out of the repository.
+
+`local.auto.tfvars` carries `maintainer_machine_cidr`, the CIDR allowed to SSH
+into the application host. The variable has no default, so Terraform prompts
+for it otherwise:
 
 ```hcl
 maintainer_machine_cidr = "1.2.3.4/32"
 ```
+
+`backends/local.s3.tfbackend` carries the name of the S3 bucket holding the
+remote state:
+
+```hcl
+bucket = "terraform-state-<account-id>-<region>-<suffix>"
+```
+
+This one is separate from the committed `backends/<env>.s3.tfbackend` files
+because a `backend` block cannot use variables — the bucket cannot be derived
+from `var`, so it is supplied at init time instead. The `make terraform-init-*`
+targets pass this file and the per-environment key file together, and Terraform
+merges the two into one backend configuration.
 
 ### Prerequisites
 

@@ -1,6 +1,6 @@
 services:
   spotify-playlist-helpers:
-    image: 000000000000.dkr.ecr.us-east-1.amazonaws.com/spotify-playlist-helpers:0.1-dev
+    image: ${ECR_REPOSITORY_URL}:${IMAGE_TAG:-0.1-dev}
     volumes:
       - ./config.json:/app/configs/config.json:ro
     ports:

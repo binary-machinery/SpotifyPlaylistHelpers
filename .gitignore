@@ -2,6 +2,7 @@
 config.json
 users.sqlite
 aws_infra/local.auto.tfvars
+aws_infra/backends/local.s3.tfbackend
 
 aws_infra/.terraform/
 aws_infra/*.tfstate

@@ -9,3 +9,7 @@ output "application_machine_public_dns" {
 output "load_balancer_public_dns" {
   value = aws_lb.application.dns_name
 }
+
+output "ecr_repository_url" {
+  value = aws_ecr_repository.application.repository_url
+}
