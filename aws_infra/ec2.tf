@@ -48,10 +48,6 @@ resource "aws_lb_target_group_attachment" "application_machine" {
   target_id = aws_instance.application_machine.id
 }
 
-resource "aws_s3_bucket" "load_balancer_logs" {
-  bucket = "sph-${var.env}-lb-logs"
-}
-
 resource "aws_lb" "application" {
   name               = "sph-${var.env}-application"
   internal           = false
@@ -62,9 +58,12 @@ resource "aws_lb" "application" {
 
   access_logs {
     bucket  = aws_s3_bucket.load_balancer_logs.id
-    prefix  = "lb-${var.env}-logs"
+    prefix  = local.load_balancer_log_prefix
     enabled = true
   }
+
+  # The load balancer test-writes to the bucket on create, which fails unless the delivery policy is already in place.
+  depends_on = [aws_s3_bucket_policy.load_balancer_logs]
 }
 
 resource "aws_lb_listener" "application" {

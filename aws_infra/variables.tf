@@ -29,6 +29,17 @@ variable "availability_zones" {
   }
 }
 
+variable "load_balancer_log_retention_days" {
+  type = number
+  default = 7
+  nullable = false
+
+  validation {
+    condition = var.load_balancer_log_retention_days >= 1
+    error_message = "load_balancer_log_retention_days must be at least 1."
+  }
+}
+
 variable "maintainer_machine_cidr" {
   type = string
   nullable = false
