@@ -35,7 +35,7 @@ def load_user(user_id):
 
 
 @app.route("/health", methods=["GET"])
-def handle_ping():
+def health():
     return jsonify({"status": "Healthy"}), 200
 
 
