@@ -1,9 +1,9 @@
 resource "aws_ecr_repository" "application" {
-  name = "spotify-playlist-helpers"
+  name                 = "spotify-playlist-helpers"
   image_tag_mutability = "IMMUTABLE_WITH_EXCLUSION"
 
   image_tag_mutability_exclusion_filter {
-    filter = "*-dev"
+    filter      = "*-dev"
     filter_type = "WILDCARD"
   }
 

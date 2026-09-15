@@ -6,7 +6,7 @@ terraform {
     # to whoever is deploying) and the state key from backends/<env>.s3.tfbackend; the
     # Makefile targets pass both. Only the two settings below hold for every deployment.
     use_lockfile = true
-    encrypt = true
+    encrypt      = true
   }
 
   required_providers {
@@ -24,9 +24,9 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project = "spotify-playlist-helpers"
+      Project     = "spotify-playlist-helpers"
       Environment = var.env
-      ManagedBy = "terraform"
+      ManagedBy   = "terraform"
     }
   }
 }

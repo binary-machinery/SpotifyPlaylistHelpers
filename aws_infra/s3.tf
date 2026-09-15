@@ -89,9 +89,9 @@ resource "aws_s3_bucket_policy" "load_balancer_logs" {
 
 data "aws_iam_policy_document" "load_balancer_logs" {
   statement {
-    sid     = "AllowLogDeliveryServicePrincipal"
-    effect  = "Allow"
-    actions = ["s3:PutObject"]
+    sid       = "AllowLogDeliveryServicePrincipal"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
     resources = [local.load_balancer_log_objects]
 
     principals {
@@ -114,9 +114,9 @@ data "aws_iam_policy_document" "load_balancer_logs" {
   }
 
   statement {
-    sid     = "AllowLogDeliveryLegacyElbAccount"
-    effect  = "Allow"
-    actions = ["s3:PutObject"]
+    sid       = "AllowLogDeliveryLegacyElbAccount"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
     resources = [local.load_balancer_log_objects]
 
     principals {
@@ -126,9 +126,9 @@ data "aws_iam_policy_document" "load_balancer_logs" {
   }
 
   statement {
-    sid       = "DenyInsecureTransport"
-    effect    = "Deny"
-    actions   = ["s3:*"]
+    sid     = "DenyInsecureTransport"
+    effect  = "Deny"
+    actions = ["s3:*"]
     resources = [
       aws_s3_bucket.load_balancer_logs.arn,
       "${aws_s3_bucket.load_balancer_logs.arn}/*",
