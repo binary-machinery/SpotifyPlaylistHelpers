@@ -4,8 +4,8 @@ SpotifyPlaylistHelpers
 A small Flask app with helper tools for managing Spotify playlists.
 
 This is an older app that I created in 2022 to organize my Spotify library. It's not in a production-ready quality,
-I used to run it locally with ngrok when I needed it, it was for personal use only. I'm currently improving it with 
-modern backend practices and technologies.
+I used to run it in dev mode locally with ngrok when I needed it, it was for personal use only. I'm currently improving 
+it with modern backend practices and technologies for infrastructure and deployment.
 
 
 Features
@@ -38,6 +38,65 @@ Roadmap
 - [**TODO**] Rewrite with FastAPI
 - [**TODO**] Rewrite in Go
 - [**TODO**] Rewrite in Rust
+
+
+Configuration
+--------------
+
+The app reads its settings from `configs/config.json` on startup (`config_loader.py`). That file is gitignored because
+it carries the Spotify credentials; `configs/config_template.json` is the committed shape of it:
+
+```json
+{
+  "server": {
+    "port": 3000,
+    "secret_key": "${FLASK_SECRET_KEY}",
+    "host": "${SERVER_HOST}"
+  },
+  "spotify": {
+    "client_id": "${SPOTIFY_CLIENT_ID}",
+    "client_secret": "${SPOTIFY_CLIENT_SECRET}"
+  }
+}
+```
+
+- `server.port` — the port Flask listens on. `3000` everywhere: both compose files publish it and the load balancer
+  target group health-checks it.
+- `server.secret_key` — Flask session signing key. Any long random string.
+- `server.host` — the public origin the app is reached at, with scheme and no trailing slash. The Spotify redirect URI
+  is built from it as `<host>/auth_callback`. Spotify supports `http://127.0.0.1` for local development.
+- `spotify.client_id`, `spotify.client_secret` — credentials of an app registered in the Spotify developer dashboard.
+
+### Running locally
+
+Register an application at https://developer.spotify.com/dashboard, then copy the template and fill in the values:
+
+```sh
+cp configs/config_template.json configs/config.json
+```
+Spotify will not redirect to an arbitrary address, so `server.host` has to be an origin it accepts and that reaches
+your machine. No need for ngrok anymore, Spotify supports `http://127.0.0.1` for local development, but the redirect URI
+must be configured in the app settings in the Spotify dev dashboard. For an actual host, HTTPS is required. 
+
+Then:
+
+```sh
+docker compose up --build
+```
+
+`compose.yaml` mounts `configs/config.json` into the container read-only, so the file never ends up in the image.
+
+App is running at http://127.0.0.1:3000.
+
+### On the deployed host
+
+The `${...}` placeholders name SSM parameters under `/sph/<env>/`. `SERVER_HOST` is created by Terraform
+(`aws_infra/ssm.tf`) and points at the load balancer's DNS name. `FLASK_SECRET_KEY`, `SPOTIFY_CLIENT_ID` and
+`SPOTIFY_CLIENT_SECRET` are SecureStrings added by hand, deliberately outside Terraform so they stay out of the state
+file.
+
+Rendering the template into `config.json` on the instance is not automated yet — it is part of the in-progress CI/CD
+work, and for now the file is placed on the host manually next to `compose.prod.yaml`.
 
 
 Infrastructure
