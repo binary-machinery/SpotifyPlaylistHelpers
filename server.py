@@ -1,3 +1,4 @@
+import secrets
 import urllib.parse
 from flask import Flask
 from flask import Response
@@ -5,6 +6,7 @@ from flask import jsonify
 from flask import redirect
 from flask import render_template
 from flask import request
+from flask import session
 from flask_login import LoginManager, login_user, current_user, login_required
 
 from config_loader import ConfigLoader
@@ -15,6 +17,11 @@ config = ConfigLoader.load()
 
 app = Flask(__name__)
 app.secret_key = config["server"]["secret_key"]
+
+# Lax keeps the session and "remember me" cookies off cross-site subresource requests,
+# so a third-party page cannot trigger a mutating endpoint with an <img> tag.
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -29,7 +36,7 @@ def load_user(user_id):
 
 @app.route("/health", methods=["GET"])
 def handle_ping():
-    return Response(jsonify({"status": "Healthy"}), status=200)
+    return jsonify({"status": "Healthy"}), 200
 
 
 @app.route("/", methods=["GET"])
@@ -159,18 +166,25 @@ def delivery_filter_duplicates():
 
 @app.route("/auth", methods=["GET"])
 def auth():
+    state = secrets.token_urlsafe(32)
+    session["oauth_state"] = state
     auth_url = "https://accounts.spotify.com/authorize?"
     params = {
         "client_id": config["spotify"]["client_id"],
         "response_type": "code",
         "scope": "playlist-modify-public playlist-read-private playlist-modify-private",
-        "redirect_uri": config["server"]["host"] + "/auth_callback"
+        "redirect_uri": config["server"]["host"] + "/auth_callback",
+        "state": state
     }
     return redirect(auth_url + urllib.parse.urlencode(params))
 
 
 @app.route("/auth_callback", methods=["GET"])
 def auth_callback():
+    expected_state = session.pop("oauth_state", None)
+    if not expected_state or not secrets.compare_digest(request.args.get("state", ""), expected_state):
+        return Response("Invalid OAuth state", status=400)
+
     code = request.args.get("code")
     if not code:
         return Response(request.args.get("error"), status=400)

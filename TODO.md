@@ -59,12 +59,10 @@ BUGS
 SECURITY
 --------
 
-[ ] OAuth "state" parameter is missing
-    server.py:160-195
-    The standard CSRF defense for the authorization code flow is absent, so
-    /auth_callback accepts any "code" an attacker delivers to a victim's
-    browser, binding the victim's session to the attacker's Spotify account.
-    Fix: generate a random state, store it in the session, verify on callback.
+[x] OAuth "state" parameter is missing
+    server.py:167-186 - FIXED. /auth generates a random state and stores it in
+    the session; /auth_callback pops it and rejects the callback unless the
+    returned state matches (single use, constant-time compare).
 
 [ ] All mutating actions are GET requests
     /add_artist_to_playlist, /subtract_playlist, /delivery/filter,
@@ -72,6 +70,10 @@ SECURITY
     remember=True session cookies. Any page can trigger them cross-site with
     an <img> tag. Small blast radius for a personal tool, but POST + CSRF
     tokens is the correct shape.
+    Partially mitigated: the session and remember-me cookies are SameSite=Lax
+    (server.py:23-24), so they are no longer sent on cross-site subresource
+    requests - the <img> vector is closed. A top-level navigation from an
+    attacker's page still carries them, so POST + CSRF tokens remains the fix.
 
 
 ROBUSTNESS
@@ -80,7 +82,7 @@ ROBUSTNESS
 [ ] Silent failure paths
     - _refresh_token (spotify_api.py:88) ignores a failed refresh and lets the
       caller proceed with a dead token.
-    - auth_callback (server.py:185) redirects to / with no message if /me fails.
+    - auth_callback (server.py:199) redirects to / with no message if /me fails.
     - Every API error becomes a bare Exception(f"{status}: {text}") and lands
       on the Werkzeug 500 page.
     Fix: error templates + @app.errorhandler, and surface refresh failures.
@@ -110,14 +112,11 @@ CLEANUP
 [ ] requirements.txt is unpinned (flask, flask-login, requests).
 
 [ ] app.run(host="0.0.0.0") ships the Werkzeug dev server on all interfaces.
-    server.py:199
-
-[ ] /api/ping is unused.
-    server.py:30
+    server.py:213
 
 [ ] get_latest_song_by_artist keys off artists[0] and the track's album date,
     so a compilation or reissue inflates the "latest" date and suppresses
     genuine new releases.
     spotify_api.py:242-250
 
-[ ] No tests, no README.
+[ ] No tests.
