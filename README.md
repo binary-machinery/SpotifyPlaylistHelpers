@@ -123,9 +123,11 @@ under its own key:
 | `dev`  | `backends/dev.s3.tfbackend`        | `sph-dev/terraform.tfstate`  |
 | `prod` | `backends/prod.s3.tfbackend`       | `sph-prod/terraform.tfstate` |
 
-The region, locking and encryption settings are shared and live in the
-`backend "s3"` block in `main.tf`; the per-environment files only override the
-state key, and the bucket comes from a gitignored local file (see below).
+Only the environment-independent settings — region, locking and encryption —
+live in the `backend "s3"` block in `main.tf`. The state key comes from the
+per-environment file and the bucket from a gitignored local file (see below),
+so the block names no state of its own: an `init` without the right
+`-backend-config` flags fails instead of quietly picking a default.
 
 Resource names are suffixed with the environment as well (`sph-dev-*`,
 `sph-prod-*`), driven by the `env` variable.
