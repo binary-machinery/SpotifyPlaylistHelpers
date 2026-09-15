@@ -29,10 +29,17 @@ resource "aws_instance" "application_machine" {
 
 
 resource "aws_lb_target_group" "application" {
-  name     = "sph-${var.env}-application"
-  vpc_id   = data.aws_vpc.default.id
-  protocol = "HTTP"
-  port     = 3000
+  # A target group cannot be deleted while a listener still forwards to it, so changing
+  # any of the attributes below has to create the replacement before destroying the old
+  # one. That in turn rules out a fixed name, which would collide while both exist:
+  # name_prefix lets AWS append a unique suffix. The prefix is capped at 6 characters
+  # (the generated suffix fills the rest of the 32-character budget), hence the initial
+  # instead of the full environment.
+  name_prefix = "sph-${substr(var.env, 0, 1)}-"
+  vpc_id      = data.aws_vpc.default.id
+  protocol    = "HTTP"
+  port        = 3000
+  deregistration_delay = 30
 
   health_check {
     path = "/health"
@@ -40,6 +47,10 @@ resource "aws_lb_target_group" "application" {
     interval = 30
     healthy_threshold = 2
     unhealthy_threshold = 2
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
