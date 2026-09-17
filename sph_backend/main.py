@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import httpx
 import uvicorn
 from fastapi import FastAPI, Depends
+from starlette.exceptions import HTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
@@ -22,6 +23,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=get_settings().server_secret.get_secret_value(),
+    same_site="lax"
+)
+
 _users_db = UsersDb()
 
 
@@ -33,11 +40,25 @@ def get_users_db() -> UsersDb:
     return _users_db
 
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=get_settings().server_secret.get_secret_value(),
-    same_site="lax"
-)
+async def get_current_user(request: Request, users_db=Depends(get_users_db)) -> User:
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user = users_db.get_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+
+async def get_spotify_api(http_client=Depends(get_http_client), settings=Depends(get_settings),
+                          users_db=Depends(get_users_db), current_user=Depends(get_current_user)) -> SpotifyApi:
+    return SpotifyApi(
+        http_client=http_client,
+        settings=settings,
+        users_db=users_db,
+        access_token=current_user.access_token,
+        refresh_token=current_user.refresh_token
+    )
 
 
 @app.get("/health")
@@ -92,9 +113,18 @@ async def auth_callback(request: Request, settings=Depends(get_settings),
             refresh_token
         )
         users_db.set_user(user)
-        # login_user(user, remember=True)
+        request.session["user_id"] = user.user_id
 
     return {"status": "authenticated"}
+
+
+@app.get("/me")
+async def me(spotify_api: SpotifyApi = Depends(get_spotify_api)):
+    response = await spotify_api.get("/me")
+    return {
+        "status": response.status_code,
+        "res": response.json()
+    }
 
 
 if __name__ == "__main__":
