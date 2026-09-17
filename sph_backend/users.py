@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 
-from flask_login import UserMixin
-
 import sqlite3
 
 
 @dataclass
-class User(UserMixin):
+class User:
     user_id: str
     access_token: str
     refresh_token: str

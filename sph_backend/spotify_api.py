@@ -4,9 +4,10 @@ import json
 import urllib.parse
 from dataclasses import dataclass
 
-import requests
+import httpx
 
-from users import User
+from sph_backend.settings import Settings
+from sph_backend.users import User, UsersDb
 
 
 @dataclass
@@ -43,33 +44,33 @@ class Track:
 
 
 class SpotifyAuth:
-    def __init__(self, config):
-        self.api_url = "https://accounts.spotify.com/api"
-        self.host = config["server"]["host"]
+    def __init__(self, http_client: httpx.AsyncClient, settings: Settings):
+        self._http_client = http_client
+        self._api_url = "https://accounts.spotify.com/api"
+        self._server_host = settings.server_host
 
-        client_id = config["spotify"]["client_id"]
-        client_secret = config["spotify"]["client_secret"]
+        client_id = settings.spotify_client_id
+        client_secret = settings.spotify_client_secret.get_secret_value()
         basic_auth = "Basic " + base64.b64encode(bytes(f"{client_id}:{client_secret}", "utf-8")).decode("utf-8")
-        self.headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
+        self._headers = {
             "Authorization": basic_auth
         }
 
-    def token(self, code):
-        return requests.post(
-            self.api_url + "/token",
-            headers=self.headers,
+    async def token(self, code: str) -> httpx.Response:
+        return await self._http_client.post(
+            self._api_url + "/token",
+            headers=self._headers,
             data={
                 "grant_type": "authorization_code",
                 "code": code,
-                "redirect_uri": self.host + "/auth_callback"
+                "redirect_uri": self._server_host + "/auth_callback"
             }
         )
 
-    def refresh_token(self, refresh_token):
-        return requests.post(
-            self.api_url + "/token",
-            headers=self.headers,
+    async def refresh_token(self, refresh_token: str) -> httpx.Response:
+        return await self._http_client.post(
+            self._api_url + "/token",
+            headers=self._headers,
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": refresh_token
@@ -78,57 +79,61 @@ class SpotifyAuth:
 
 
 class SpotifyApi:
-    def __init__(self, config, users_db, access_token, refresh_token):
-        self.api_url = "https://api.spotify.com/v1"
-        self.config = config
-        self.users_db = users_db
-        self.access_token = access_token
-        self.refresh_token = refresh_token
+    def __init__(self, http_client: httpx.AsyncClient, settings: Settings, users_db: UsersDb,
+                 access_token: str, refresh_token: str):
+        self._http_client = http_client
+        self._api_url = "https://api.spotify.com/v1"
+        self._settings = settings
+        self._users_db = users_db
+        self._access_token = access_token
+        self._refresh_token = refresh_token
 
-    def _refresh_token(self):
-        auth_response = SpotifyAuth(self.config).refresh_token(self.refresh_token)
-        if auth_response.ok:
-            self.access_token = auth_response.json().get("access_token")
-            self.refresh_token = auth_response.json().get("refresh_token", self.refresh_token)
-            response = self.get("/me")
-            if response.ok:
+    async def _refresh_token(self):
+        auth_response = await SpotifyAuth(self._http_client, self._settings).refresh_token(self._refresh_token)
+        if auth_response.is_success:
+            auth_response_json = auth_response.json()
+            self._access_token = auth_response_json.get("access_token")
+            self._refresh_token = auth_response_json.get("refresh_token", self._refresh_token)
+            response = await self.get("/me")
+            if response.is_success:
                 user = User(
                     response.json()["id"],
-                    self.access_token,
-                    self.refresh_token
+                    self._access_token,
+                    self._refresh_token
                 )
-                self.users_db.set_user(user)
+                self._users_db.set_user(user)
 
-    def _http(self, function, endpoint, params=None, data=None, retry=True):
+    async def _http(self, method: str, endpoint: str, params=None, data=None, retry=True) -> httpx.Response:
         if params is None:
             params = {}
 
-        response = function(
-            f"{self.api_url}{endpoint}?{urllib.parse.urlencode(params)}",
+        response = await self._http_client.request(
+            method=method,
+            url=f"{self._api_url}{endpoint}?{urllib.parse.urlencode(params)}",
             headers={
-                "Authorization": f"Bearer {self.access_token}",
+                "Authorization": f"Bearer {self._access_token}",
                 "Content-Type": "application/json"
             },
             data=data
         )
 
-        if not response.ok and response.status_code == 401 and retry:
-            self._refresh_token()
-            response = self._http(function, endpoint, params, retry=False)
+        if not response.is_success and response.status_code == 401 and retry:
+            await self._refresh_token()
+            response = await self._http(method, endpoint, params, data, retry=False)
 
         return response
 
-    def get(self, endpoint, params=None, data=None, retry=True):
-        return self._http(requests.get, endpoint, params, data, retry)
+    async def get(self, endpoint, params=None, data=None, retry=True) -> httpx.Response:
+        return await self._http("GET", endpoint, params, data, retry)
 
-    def post(self, endpoint, params=None, data=None, retry=True):
-        return self._http(requests.post, endpoint, params, data, retry)
+    async def post(self, endpoint, params=None, data=None, retry=True) -> httpx.Response:
+        return await self._http("POST", endpoint, params, data, retry)
 
-    def put(self, endpoint, params=None, data=None, retry=True):
-        return self._http(requests.put, endpoint, params, data, retry)
+    async def put(self, endpoint, params=None, data=None, retry=True) -> httpx.Response:
+        return await self._http("PUT", endpoint, params, data, retry)
 
-    def delete(self, endpoint, params=None, data=None, retry=True):
-        return self._http(requests.delete, endpoint, params, data, retry)
+    async def delete(self, endpoint, params=None, data=None, retry=True) -> httpx.Response:
+        return await self._http("DELETE", endpoint, params, data, retry)
 
     def get_paginated_items(self, endpoint, params=None, limit=20):
         if params is None:
