@@ -31,11 +31,11 @@ Roadmap
 --------------
 
 - [**In Progress**] Configure AWS infrastructure
-- [**In Progress**] Configure CI/CD with GitHub Actions
+- [**In Progress**] Use Poetry
+- [**In Progress**] Add semantic versioning
+- [**In Progress**] Rewrite with FastAPI
+- [**TODO**] Configure CI/CD with GitHub Actions
 - [**TODO**] Fix "DeLivery: filter out duplicates"
-- [**TODO**] Use Poetry
-- [**TODO**] Add semantic versioning
-- [**TODO**] Rewrite with FastAPI
 - [**TODO**] Rewrite in Go
 - [**TODO**] Rewrite in Rust
 
