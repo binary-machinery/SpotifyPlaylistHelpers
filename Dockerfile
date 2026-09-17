@@ -1,11 +1,14 @@
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+ENV POETRY_VIRTUALENVS_CREATE=false
 
-COPY *.py ./
-COPY templates/ ./templates/
+RUN pip install poetry==2.4.3
 
-CMD ["python", "server.py"]
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --only main
+
+COPY sph_backend/ ./sph_backend/
+
+CMD ["uvicorn", "sph_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

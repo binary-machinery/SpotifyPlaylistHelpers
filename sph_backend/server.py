@@ -9,9 +9,9 @@ from flask import request
 from flask import session
 from flask_login import LoginManager, login_user, current_user, login_required
 
-from config_loader import ConfigLoader
-from spotify_api import SpotifyAuth, SpotifyApi
-from users import User, UsersDb
+from sph_backend.config_loader import ConfigLoader
+from sph_backend.spotify_api import SpotifyAuth, SpotifyApi
+from sph_backend.users import User, UsersDb
 
 config = ConfigLoader.load()
 
