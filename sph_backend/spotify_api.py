@@ -67,7 +67,7 @@ class SpotifyAuth:
             }
         )
 
-    async def refresh_token(self, refresh_token: str) -> httpx.Response:
+    async def update_token(self, refresh_token: str) -> httpx.Response:
         return await self._http_client.post(
             self._api_url + "/token",
             headers=self._headers,
@@ -88,8 +88,8 @@ class SpotifyApi:
         self._access_token = access_token
         self._refresh_token = refresh_token
 
-    async def _refresh_token(self):
-        auth_response = await SpotifyAuth(self._http_client, self._settings).refresh_token(self._refresh_token)
+    async def _update_token(self):
+        auth_response = await SpotifyAuth(self._http_client, self._settings).update_token(self._refresh_token)
         if auth_response.is_success:
             auth_response_json = auth_response.json()
             self._access_token = auth_response_json.get("access_token")
@@ -118,7 +118,7 @@ class SpotifyApi:
         )
 
         if not response.is_success and response.status_code == 401 and retry:
-            await self._refresh_token()
+            await self._update_token()
             response = await self._http(method, endpoint, params, data, retry=False)
 
         return response
