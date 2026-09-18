@@ -81,6 +81,13 @@ async def auth(request: Request, settings=Depends(get_settings)):
     return RedirectResponse(auth_url + urllib.parse.urlencode(params))
 
 
+@app.post("/logout")
+async def logout(request: Request, users_db=Depends(get_users_db), current_user=Depends(get_current_user)):
+    request.session.clear()
+    users_db.delete_user(current_user.user_id)
+    return {"status": "logged out"}
+
+
 @app.get("/auth_callback")
 async def auth_callback(request: Request, settings=Depends(get_settings),
                         http_client=Depends(get_http_client), users_db=Depends(get_users_db)):

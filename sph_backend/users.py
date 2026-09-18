@@ -44,3 +44,6 @@ class UsersDb:
         if res is None:
             return None
         return User(res[0], res[1], res[2])
+
+    def delete_user(self, user_id):
+        self._execute('DELETE FROM users WHERE id = ?', (user_id,))
