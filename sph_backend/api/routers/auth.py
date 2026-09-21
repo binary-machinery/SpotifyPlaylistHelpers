@@ -1,12 +1,12 @@
 import secrets
 import urllib.parse
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
-from sph_backend.api.dependencies import get_users_db, get_current_user, get_http_client, get_spotify_client
-from sph_backend.settings import get_settings
+from sph_backend.api.dependencies import SpotifyClientDep, UsersDbDep, \
+    CurrentUserDep, HttpClientDep, SettingsDep
 from sph_backend.spotify.auth import SpotifyAuth
 from sph_backend.spotify.client import SpotifyClient
 from sph_backend.users import User
@@ -17,7 +17,7 @@ router = APIRouter(
 
 
 @router.get("/auth")
-async def auth(request: Request, settings=Depends(get_settings)):
+async def auth(request: Request, settings: SettingsDep):
     state = secrets.token_urlsafe(32)
     request.session["oauth_state"] = state
     auth_url = "https://accounts.spotify.com/authorize"
@@ -32,7 +32,7 @@ async def auth(request: Request, settings=Depends(get_settings)):
 
 
 @router.get("/me")
-async def me(spotify_client: SpotifyClient = Depends(get_spotify_client)):
+async def me(spotify_client: SpotifyClientDep):
     user = await spotify_client.get("/me")
     return {
         "res": user
@@ -40,15 +40,15 @@ async def me(spotify_client: SpotifyClient = Depends(get_spotify_client)):
 
 
 @router.post("/logout")
-async def logout(request: Request, users_db=Depends(get_users_db), current_user=Depends(get_current_user)):
+async def logout(request: Request, users_db: UsersDbDep, current_user: CurrentUserDep):
     request.session.clear()
     users_db.delete_user(current_user.user_id)
     return {"status": "logged out"}
 
 
 @router.get("/auth_callback")
-async def auth_callback(request: Request, settings=Depends(get_settings),
-                        http_client=Depends(get_http_client), users_db=Depends(get_users_db)):
+async def auth_callback(request: Request, settings: SettingsDep,
+                        http_client: HttpClientDep, users_db: UsersDbDep):
     expected_state = request.session.pop("oauth_state", None)
     if not expected_state or not secrets.compare_digest(request.query_params.get("state", ""), expected_state):
         return Response("Invalid OAuth state", status_code=400)
