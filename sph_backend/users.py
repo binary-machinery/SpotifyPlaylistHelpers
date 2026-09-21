@@ -9,9 +9,6 @@ class User:
     access_token: str
     refresh_token: str
 
-    def get_id(self):
-        return self.user_id
-
 
 class UsersDb:
     def __init__(self):

@@ -17,20 +17,6 @@ class SpotifyClient:
         self._access_token = access_token
         self._refresh_token = refresh_token
 
-    async def _update_token(self):
-        auth_response = await SpotifyAuth(self._http_client, self._settings).update_token(self._refresh_token)
-        if auth_response.is_success:
-            auth_response_json = auth_response.json()
-            self._access_token = auth_response_json.get("access_token")
-            self._refresh_token = auth_response_json.get("refresh_token", self._refresh_token)
-            user_data_json = await self.get("/me")
-            user = User(
-                user_id=user_data_json["id"],
-                access_token=self._access_token,
-                refresh_token=self._refresh_token
-            )
-            self._users_db.set_user(user)
-
     async def get(self, endpoint, params=None, retry=True) -> Any:
         return await self._http(method="GET", endpoint=endpoint, params=params, retry=retry)
 
@@ -42,31 +28,6 @@ class SpotifyClient:
 
     async def delete(self, endpoint, params=None, data=None, json=None, retry=True) -> Any:
         return await self._http(method="DELETE", endpoint=endpoint, params=params, data=data, json=json, retry=retry)
-
-    async def _http(self, method: str, endpoint: str, params=None, data=None, json=None, retry=True) -> Any:
-        response = await self._http_client.request(
-            method=method,
-            url=f"{self._api_url}{endpoint}",
-            headers={
-                "Authorization": f"Bearer {self._access_token}",
-                "Content-Type": "application/json"
-            },
-            params=params,
-            data=data,
-            json=json
-        )
-
-        if not response.is_success:
-            if response.status_code == 401 and retry:
-                await self._update_token()
-                response = await self._http(method=method, endpoint=endpoint, params=params,
-                                            data=data, json=json, retry=False)
-            else:
-                raise Exception(f"{response.status_code}: {response.text}")
-
-        if not response.content:
-            return None
-        return response.json()
 
     async def get_paginated_items(self, endpoint: str, params: dict[str, Any] | None = None, limit: int = 20) \
             -> list[dict[str, Any]]:
@@ -86,3 +47,40 @@ class SpotifyClient:
                 offset += limit
 
         return items
+
+    async def _http(self, method: str, endpoint: str, params=None, data=None, json=None, retry=True) -> Any:
+        response = await self._http_client.request(
+            method=method,
+            url=f"{self._api_url}{endpoint}",
+            headers={
+                "Authorization": f"Bearer {self._access_token}",
+                "Content-Type": "application/json"
+            },
+            params=params,
+            data=data,
+            json=json
+        )
+
+        if not response.is_success:
+            if response.status_code == 401 and retry:
+                await self._refresh_user_token()
+                response = await self._http(method=method, endpoint=endpoint, params=params,
+                                            data=data, json=json, retry=False)
+            else:
+                raise Exception(f"{response.status_code}: {response.text}")
+
+        if not response.content:
+            return None
+        return response.json()
+
+    async def _refresh_user_token(self):
+        auth_response_json = await SpotifyAuth(self._http_client, self._settings).refresh_user_token(self._refresh_token)
+        self._access_token = auth_response_json.get("access_token")
+        self._refresh_token = auth_response_json.get("refresh_token", self._refresh_token)
+        user_data_json = await self.get("/me")
+        user = User(
+            user_id=user_data_json["id"],
+            access_token=self._access_token,
+            refresh_token=self._refresh_token
+        )
+        self._users_db.set_user(user)

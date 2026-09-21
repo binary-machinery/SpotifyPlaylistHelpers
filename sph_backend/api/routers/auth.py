@@ -1,7 +1,6 @@
 import secrets
 import urllib.parse
 
-import httpx
 from fastapi import APIRouter, Depends
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
@@ -58,12 +57,9 @@ async def auth_callback(request: Request, settings=Depends(get_settings),
     if not code:
         return Response(request.query_params.get("error"), status_code=400)
 
-    auth_response: httpx.Response = await SpotifyAuth(http_client=http_client, settings=settings).token(code)
-    if not auth_response.is_success:
-        return Response(auth_response.text, status_code=auth_response.status_code)
-
-    access_token = auth_response.json().get("access_token")
-    refresh_token = auth_response.json().get("refresh_token")
+    auth_response_json = await SpotifyAuth(http_client=http_client, settings=settings).token(code)
+    access_token = auth_response_json["access_token"]
+    refresh_token = auth_response_json["refresh_token"]
 
     user_data_json = await SpotifyClient(
         http_client=http_client,

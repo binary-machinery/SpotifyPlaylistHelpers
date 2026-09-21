@@ -1,4 +1,5 @@
 import base64
+from typing import Any
 
 import httpx
 
@@ -18,8 +19,8 @@ class SpotifyAuth:
             "Authorization": basic_auth
         }
 
-    async def token(self, code: str) -> httpx.Response:
-        return await self._http_client.post(
+    async def token(self, code: str) -> dict[str, Any]:
+        response = await self._http_client.post(
             self._api_url + "/token",
             headers=self._headers,
             data={
@@ -28,9 +29,12 @@ class SpotifyAuth:
                 "redirect_uri": self._server_host + "/auth_callback"
             }
         )
+        if not response.is_success:
+            raise Exception(f"{response.status_code}: {response.text}")
+        return response.json()
 
-    async def update_token(self, refresh_token: str) -> httpx.Response:
-        return await self._http_client.post(
+    async def refresh_user_token(self, refresh_token: str) -> dict[str, Any]:
+        response = await self._http_client.post(
             self._api_url + "/token",
             headers=self._headers,
             data={
@@ -38,3 +42,6 @@ class SpotifyAuth:
                 "refresh_token": refresh_token
             }
         )
+        if not response.is_success:
+            raise Exception(f"{response.status_code}: {response.text}")
+        return response.json()
