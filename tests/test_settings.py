@@ -10,6 +10,7 @@ def clear_settings(monkeypatch):
     monkeypatch.delenv("SERVER_SECRET", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("USERS_DB", raising=False)
 
 
 @pytest.fixture
@@ -18,6 +19,7 @@ def set_settings(monkeypatch):
     monkeypatch.setenv("SERVER_SECRET", "server_secret_value")
     monkeypatch.setenv("SPOTIFY_CLIENT_ID", "spotify_client_id_value")
     monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "spotify_client_secret_value")
+    monkeypatch.setenv("USERS_DB", "users_db_value")
 
 
 def test_fails_if_missing_settings(clear_settings):

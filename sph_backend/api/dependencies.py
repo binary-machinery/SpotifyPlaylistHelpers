@@ -10,18 +10,16 @@ from sph_backend.spotify.client import SpotifyClient
 from sph_backend.spotify.service import SpotifyPlaylistService
 from sph_backend.users import UsersDb, User
 
-_users_db = UsersDb()
-
 
 def get_http_client(request: Request) -> httpx.AsyncClient:
     return request.app.state.http_client
 
 
-def get_users_db() -> UsersDb:
-    return _users_db
+def get_users_db(request: Request) -> UsersDb:
+    return request.app.state.users_db
 
 
-async def get_current_user(request: Request, users_db=Depends(get_users_db)) -> User:
+def get_current_user(request: Request, users_db=Depends(get_users_db)) -> User:
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")

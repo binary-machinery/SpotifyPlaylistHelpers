@@ -11,10 +11,14 @@ from starlette.responses import JSONResponse
 from sph_backend.api.routers import auth, playlists, misc
 from sph_backend.settings import get_settings
 from sph_backend.spotify.errors import SpotifyAuthError, SpotifyRateLimitError, SpotifyApiError
+from sph_backend.users import UsersDb
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.users_db = UsersDb(users_db_path=get_settings().users_db_path)
+    app.state.users_db.create_schema()
+
     async with httpx.AsyncClient() as client:
         app.state.http_client = client
         yield
