@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 
 from sph_backend.settings import Settings
+from sph_backend.spotify.errors import SpotifyAuthError
 
 
 class SpotifyAuth:
@@ -20,28 +21,24 @@ class SpotifyAuth:
         }
 
     async def token(self, code: str) -> dict[str, Any]:
-        response = await self._http_client.post(
-            self._api_url + "/token",
-            headers=self._headers,
-            data={
-                "grant_type": "authorization_code",
-                "code": code,
-                "redirect_uri": self._server_host + "/auth_callback"
-            }
-        )
-        if not response.is_success:
-            raise Exception(f"{response.status_code}: {response.text}")
-        return response.json()
+        return await self._http_post_token(data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": self._server_host + "/auth_callback"
+        })
 
     async def refresh_user_token(self, refresh_token: str) -> dict[str, Any]:
+        return await self._http_post_token(data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token
+        })
+
+    async def _http_post_token(self, data: dict[str, Any]) -> dict[str, Any]:
         response = await self._http_client.post(
             self._api_url + "/token",
             headers=self._headers,
-            data={
-                "grant_type": "refresh_token",
-                "refresh_token": refresh_token
-            }
+            data=data
         )
         if not response.is_success:
-            raise Exception(f"{response.status_code}: {response.text}")
+            raise SpotifyAuthError(status_code=response.status_code, body=response.text)
         return response.json()

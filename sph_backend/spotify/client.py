@@ -4,11 +4,12 @@ import httpx
 
 from sph_backend.settings import Settings
 from sph_backend.spotify.auth import SpotifyAuth
+from sph_backend.spotify.errors import SpotifyRateLimitError, SpotifyApiError, SpotifyAuthError
 
 
 class SpotifyClient:
     def __init__(self, http_client: httpx.AsyncClient, settings: Settings,
-                 access_token: str, refresh_token: str, on_token_refreshed: Callable[[str, str], None] = None):
+                 access_token: str, refresh_token: str, on_token_refreshed: Callable[[str, str], None] | None = None):
         self._http_client = http_client
         self._api_url = "https://api.spotify.com/v1"
         self._settings = settings
@@ -61,12 +62,21 @@ class SpotifyClient:
         )
 
         if not response.is_success:
+            if response.status_code == 429:
+                raise SpotifyRateLimitError(
+                    status_code=response.status_code,
+                    body=response.text,
+                    retry_after=response.headers.get("Retry-After")
+                )
+
             if response.status_code == 401 and retry:
                 await self._refresh_user_token()
                 return await self._http(method=method, endpoint=endpoint, params=params,
-                                            data=data, json=json, retry=False)
+                                        data=data, json=json, retry=False)
+            elif response.status_code == 401:
+                raise SpotifyAuthError(status_code=response.status_code, body=response.text)
             else:
-                raise Exception(f"{response.status_code}: {response.text}")
+                raise SpotifyApiError(status_code=response.status_code, body=response.text)
 
         if not response.content:
             return None
