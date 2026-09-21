@@ -10,7 +10,7 @@ from flask import session
 from flask_login import LoginManager, login_user, current_user, login_required
 
 from sph_backend.config_loader import ConfigLoader
-from sph_backend.spotify_api import SpotifyAuth, SpotifyApi
+from sph_backend.spotify.client import SpotifyAuth, SpotifyClient
 from sph_backend.users import User, UsersDb
 
 config = ConfigLoader.load()
@@ -43,7 +43,7 @@ def health():
 def index():
     user = None
     if current_user.is_authenticated:
-        response = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get("/me")
+        response = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get("/me")
         if response.ok:
             user = response.json()["display_name"]
     return render_template("index.html", user=user)
@@ -52,7 +52,7 @@ def index():
 @app.route("/playlist_new_releases/select_playlist", methods=["GET"])
 @login_required
 def playlist_new_releases_select_playlist():
-    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html", playlists=playlists, callback="/playlist_new_releases?")
 
 
@@ -60,7 +60,7 @@ def playlist_new_releases_select_playlist():
 @login_required
 def playlist_new_releases():
     playlist_id = request.args.get("playlist_id")
-    latest_dates, releases = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+    latest_dates, releases = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
         .get_new_releases_for_playlist(playlist_id)
     return render_template("playlist_new_releases.html", latest_dates=latest_dates, releases=releases)
 
@@ -68,7 +68,7 @@ def playlist_new_releases():
 @app.route("/add_artist_to_playlist/select_playlist", methods=["GET"])
 @login_required
 def add_artist_to_playlist_select_playlist():
-    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html",
                            playlists=playlists, callback="/add_artist_to_playlist/select_artist?")
 
@@ -86,7 +86,7 @@ def add_artist_to_playlist_select_artist():
 def add_artist_to_playlist():
     playlist_id = request.args.get("playlist_id")
     artist_id = request.args.get("artist_id")
-    SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+    SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
         .add_artist_to_playlist(playlist_id, artist_id)
     return render_template("result.html",
                            callback=f"/add_artist_to_playlist/select_artist?playlist_id={playlist_id}")
@@ -95,7 +95,7 @@ def add_artist_to_playlist():
 @app.route("/subtract_playlist/select_playlist1", methods=["GET"])
 @login_required
 def subtract_playlist_select_playlist1():
-    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html",
                            playlists=playlists,
                            header="Select playlist 1",
@@ -106,7 +106,7 @@ def subtract_playlist_select_playlist1():
 @login_required
 def subtract_playlist_select_playlist2():
     playlist_id1 = request.args.get("playlist_id")
-    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html",
                            playlists=playlists,
                            header="Select playlist 2",
@@ -118,7 +118,7 @@ def subtract_playlist_select_playlist2():
 def subtract_playlist():
     playlist_id1 = request.args.get("playlist_id1")
     playlist_id2 = request.args.get("playlist_id")
-    SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+    SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
         .subtract_playlist(playlist_id1, playlist_id2)
     return render_template("result.html",
                            callback="/")
@@ -128,7 +128,7 @@ def subtract_playlist():
 @login_required
 def delivery_filter_select_playlist():
     keyword = request.args.get("keyword")
-    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html",
                            playlists=playlists,
                            callback=f"/delivery/filter?keyword={keyword}&")
@@ -139,7 +139,7 @@ def delivery_filter_select_playlist():
 def delivery_filter():
     playlist_id = request.args.get("playlist_id")
     keyword = request.args.get("keyword")
-    SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+    SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
         .filter_playlist(current_user.user_id, playlist_id, keyword)
     return render_template("result.html",
                            callback="/")
@@ -148,7 +148,7 @@ def delivery_filter():
 @app.route("/delivery/filter_duplicates/select_playlist", methods=["GET"])
 @login_required
 def delivery_filter_duplicates_select_playlist():
-    playlists = SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
+    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
     return render_template("playlist_selector.html",
                            playlists=playlists,
                            callback="/delivery/filter_duplicates?")
@@ -158,7 +158,7 @@ def delivery_filter_duplicates_select_playlist():
 @login_required
 def delivery_filter_duplicates():
     playlist_id = request.args.get("playlist_id")
-    SpotifyApi(config, users_db, current_user.access_token, current_user.refresh_token) \
+    SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
         .filter_duplicates(current_user.user_id, playlist_id)
     return render_template("result.html",
                            callback="/")
@@ -196,7 +196,7 @@ def auth_callback():
     access_token = response.json().get("access_token")
     refresh_token = response.json().get("refresh_token")
 
-    response = SpotifyApi(config, users_db, access_token, refresh_token).get("/me")
+    response = SpotifyClient(config, users_db, access_token, refresh_token).get("/me")
     if response.ok:
         user = User(
             response.json()["id"],

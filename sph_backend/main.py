@@ -11,7 +11,9 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
 from sph_backend.settings import get_settings
-from sph_backend.spotify_api import SpotifyAuth, SpotifyApi
+from sph_backend.spotify.auth import SpotifyAuth
+from sph_backend.spotify.client import SpotifyClient
+from sph_backend.spotify.service import SpotifyPlaylistService
 from sph_backend.users import UsersDb, User
 
 
@@ -50,15 +52,19 @@ async def get_current_user(request: Request, users_db=Depends(get_users_db)) -> 
     return user
 
 
-async def get_spotify_api(http_client=Depends(get_http_client), settings=Depends(get_settings),
-                          users_db=Depends(get_users_db), current_user=Depends(get_current_user)) -> SpotifyApi:
-    return SpotifyApi(
+async def get_spotify_client(http_client=Depends(get_http_client), settings=Depends(get_settings),
+                             users_db=Depends(get_users_db), current_user=Depends(get_current_user)) -> SpotifyClient:
+    return SpotifyClient(
         http_client=http_client,
         settings=settings,
         users_db=users_db,
         access_token=current_user.access_token,
         refresh_token=current_user.refresh_token
     )
+
+
+async def get_spotify_service(spotify_client=Depends(get_spotify_client)) -> SpotifyPlaylistService:
+    return SpotifyPlaylistService(spotify_client=spotify_client)
 
 
 @app.get("/health")
@@ -106,32 +112,36 @@ async def auth_callback(request: Request, settings=Depends(get_settings),
     access_token = auth_response.json().get("access_token")
     refresh_token = auth_response.json().get("refresh_token")
 
-    auth_response = await SpotifyApi(
+    user_data_json = await SpotifyClient(
         http_client=http_client,
         settings=settings,
         users_db=users_db,
         access_token=access_token,
         refresh_token=refresh_token
     ).get("/me")
-    if auth_response.is_success:
-        user = User(
-            auth_response.json()["id"],
-            access_token,
-            refresh_token
-        )
-        users_db.set_user(user)
-        request.session["user_id"] = user.user_id
+    user = User(
+        user_data_json["id"],
+        access_token,
+        refresh_token
+    )
+    users_db.set_user(user)
+    request.session["user_id"] = user.user_id
 
     return {"status": "authenticated"}
 
 
 @app.get("/me")
-async def me(spotify_api: SpotifyApi = Depends(get_spotify_api)):
-    response = await spotify_api.get("/me")
+async def me(spotify_client: SpotifyClient = Depends(get_spotify_client)):
+    user = await spotify_client.get("/me")
     return {
-        "status": response.status_code,
-        "res": response.json()
+        "res": user
     }
+
+
+@app.get("/playlists")
+async def get_playlists(spotify_service: SpotifyPlaylistService = Depends(get_spotify_service)):
+    playlists = await spotify_service.get_playlists()
+    return {"playlists": playlists}
 
 
 if __name__ == "__main__":
