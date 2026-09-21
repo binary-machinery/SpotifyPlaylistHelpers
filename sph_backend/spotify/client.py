@@ -1,21 +1,20 @@
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
 from sph_backend.settings import Settings
 from sph_backend.spotify.auth import SpotifyAuth
-from sph_backend.users import User, UsersDb
 
 
 class SpotifyClient:
-    def __init__(self, http_client: httpx.AsyncClient, settings: Settings, users_db: UsersDb,
-                 access_token: str, refresh_token: str):
+    def __init__(self, http_client: httpx.AsyncClient, settings: Settings,
+                 access_token: str, refresh_token: str, on_token_refreshed: Callable[[str, str], None] = None):
         self._http_client = http_client
         self._api_url = "https://api.spotify.com/v1"
         self._settings = settings
-        self._users_db = users_db
         self._access_token = access_token
         self._refresh_token = refresh_token
+        self._on_token_refreshed = on_token_refreshed
 
     async def get(self, endpoint, params=None, retry=True) -> Any:
         return await self._http(method="GET", endpoint=endpoint, params=params, retry=retry)
@@ -64,7 +63,7 @@ class SpotifyClient:
         if not response.is_success:
             if response.status_code == 401 and retry:
                 await self._refresh_user_token()
-                response = await self._http(method=method, endpoint=endpoint, params=params,
+                return await self._http(method=method, endpoint=endpoint, params=params,
                                             data=data, json=json, retry=False)
             else:
                 raise Exception(f"{response.status_code}: {response.text}")
@@ -74,13 +73,9 @@ class SpotifyClient:
         return response.json()
 
     async def _refresh_user_token(self):
-        auth_response_json = await SpotifyAuth(self._http_client, self._settings).refresh_user_token(self._refresh_token)
-        self._access_token = auth_response_json.get("access_token")
+        auth_response_json = await SpotifyAuth(self._http_client, self._settings).refresh_user_token(
+            self._refresh_token)
+        self._access_token = auth_response_json["access_token"]
         self._refresh_token = auth_response_json.get("refresh_token", self._refresh_token)
-        user_data_json = await self.get("/me")
-        user = User(
-            user_id=user_data_json["id"],
-            access_token=self._access_token,
-            refresh_token=self._refresh_token
-        )
-        self._users_db.set_user(user)
+        if self._on_token_refreshed is not None:
+            self._on_token_refreshed(self._access_token, self._refresh_token)

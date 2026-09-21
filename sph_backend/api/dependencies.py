@@ -33,12 +33,20 @@ async def get_current_user(request: Request, users_db=Depends(get_users_db)) -> 
 
 async def get_spotify_client(http_client=Depends(get_http_client), settings=Depends(get_settings),
                              users_db=Depends(get_users_db), current_user=Depends(get_current_user)) -> SpotifyClient:
+    def on_token_refreshed(access_token: str, refresh_token: str):
+        user = User(
+            user_id=current_user.user_id,
+            access_token=access_token,
+            refresh_token=refresh_token
+        )
+        users_db.set_user(user)
+
     return SpotifyClient(
         http_client=http_client,
         settings=settings,
-        users_db=users_db,
         access_token=current_user.access_token,
-        refresh_token=current_user.refresh_token
+        refresh_token=current_user.refresh_token,
+        on_token_refreshed=on_token_refreshed
     )
 
 

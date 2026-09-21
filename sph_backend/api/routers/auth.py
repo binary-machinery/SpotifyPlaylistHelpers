@@ -64,7 +64,6 @@ async def auth_callback(request: Request, settings=Depends(get_settings),
     user_data_json = await SpotifyClient(
         http_client=http_client,
         settings=settings,
-        users_db=users_db,
         access_token=access_token,
         refresh_token=refresh_token
     ).get("/me")
