@@ -8,7 +8,7 @@ router = APIRouter(
 )
 
 
-@router.get("/playlists")
+@router.get("")
 async def get_playlists(spotify_service: SpotifyServiceDep):
     playlists = await spotify_service.get_playlists()
     return {"playlists": playlists}
