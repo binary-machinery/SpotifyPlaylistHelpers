@@ -28,6 +28,7 @@ async def auth(request: Request, settings: SettingsDep):
         "response_type": "code",
         "scope": "playlist-modify-public playlist-read-private playlist-modify-private",
         "redirect_uri": settings.server_host + "/auth_callback",
+        "show_dialog": True,
         "state": state
     }
     return RedirectResponse(auth_url + "?" + urllib.parse.urlencode(params))
