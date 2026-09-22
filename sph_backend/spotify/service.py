@@ -42,7 +42,7 @@ class SpotifyPlaylistService:
         tracks = []
         for track_meta_json in tracks_json:
             track_json = track_meta_json.get("track")
-            if tracks_json is None:
+            if track_json is None:
                 continue
 
             album_json = track_json["album"]
