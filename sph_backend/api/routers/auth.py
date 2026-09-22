@@ -1,12 +1,14 @@
+import logging
 import secrets
 import urllib.parse
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from starlette.requests import Request
-from starlette.responses import RedirectResponse, Response
+from starlette.responses import RedirectResponse
 
-from sph_backend.api.dependencies import SpotifyClientDep, UsersDbDep, \
-    CurrentUserDep, HttpClientDep, SettingsDep
+from sph_backend.api import schemas
+from sph_backend.api.dependencies import UsersDbDep, \
+    HttpClientDep, SettingsDep, SpotifyClientDep
 from sph_backend.spotify.auth import SpotifyAuth
 from sph_backend.spotify.client import SpotifyClient
 from sph_backend.users import User
@@ -16,7 +18,7 @@ router = APIRouter(
 )
 
 
-@router.get("/auth")
+@router.get("/auth", response_class=RedirectResponse, status_code=307)
 async def auth(request: Request, settings: SettingsDep):
     state = secrets.token_urlsafe(32)
     request.session["oauth_state"] = state
@@ -32,30 +34,39 @@ async def auth(request: Request, settings: SettingsDep):
 
 
 @router.get("/me")
-async def me(spotify_client: SpotifyClientDep):
-    user = await spotify_client.get("/me")
-    return {
-        "res": user
-    }
+async def me(spotify_client: SpotifyClientDep) -> schemas.SpotifyUser:
+    user_json = await spotify_client.get("/me")
+    return schemas.SpotifyUser(
+        id=user_json["id"],
+        display_name=user_json.get("display_name")
+    )
 
 
 @router.post("/logout")
-async def logout(request: Request, users_db: UsersDbDep, current_user: CurrentUserDep):
+async def logout(request: Request, users_db: UsersDbDep) -> schemas.AuthStatus:
+    user_id = request.session.get("user_id")
     request.session.clear()
-    users_db.delete_user(current_user.user_id)
-    return {"status": "logged out"}
+    if user_id is not None and isinstance(user_id, str):
+        users_db.delete_user(user_id)
+    return schemas.AuthStatus(status="logged out")
 
 
 @router.get("/auth_callback")
-async def auth_callback(request: Request, settings: SettingsDep,
-                        http_client: HttpClientDep, users_db: UsersDbDep):
+async def auth_callback(request: Request, settings: SettingsDep, http_client: HttpClientDep,
+                        users_db: UsersDbDep) -> schemas.AuthStatus:
     expected_state = request.session.pop("oauth_state", None)
     if not expected_state or not secrets.compare_digest(request.query_params.get("state", ""), expected_state):
-        return Response("Invalid OAuth state", status_code=400)
+        logging.warning("Spotify Auth Error: Invalid OAuth state")
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+
+    if "error" in request.query_params:
+        logging.warning("Spotify Auth Error: %s", request.query_params["error"])
+        raise HTTPException(status_code=400, detail="Spotify Auth Error")
 
     code = request.query_params.get("code")
     if not code:
-        return Response(request.query_params.get("error"), status_code=400)
+        logging.warning("Spotify Auth Error: No `code` in the Spotify Auth request")
+        raise HTTPException(status_code=400, detail="No `code` in the Spotify Auth request")
 
     auth_response_json = await SpotifyAuth(http_client=http_client, settings=settings).token(code)
     access_token = auth_response_json["access_token"]
@@ -75,4 +86,4 @@ async def auth_callback(request: Request, settings: SettingsDep,
     users_db.set_user(user)
     request.session["user_id"] = user.user_id
 
-    return {"status": "authenticated"}
+    return schemas.AuthStatus(status="authenticated")
