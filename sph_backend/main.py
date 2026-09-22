@@ -37,7 +37,7 @@ app.include_router(misc.router)
 
 @app.exception_handler(SpotifyAuthError)
 async def handle_spotify_auth_error(request: Request, exc: SpotifyAuthError):
-    logging.error(f"Spotify authentication error: {exc}")
+    logging.warning("Spotify authentication error: %s", exc)
     return JSONResponse(
         status_code=401,
         content={"detail": "Spotify authentication failed, try to reauthenticate"}
@@ -46,7 +46,7 @@ async def handle_spotify_auth_error(request: Request, exc: SpotifyAuthError):
 
 @app.exception_handler(SpotifyRateLimitError)
 async def handle_spotify_rate_limit_error(request: Request, exc: SpotifyRateLimitError):
-    logging.error(f"Spotify rate limit error: {exc}")
+    logging.error("Spotify rate limit error: %s", exc)
     return JSONResponse(
         status_code=429,
         content={"detail": "Spotify rate limit, try later"},
@@ -58,13 +58,16 @@ async def handle_spotify_rate_limit_error(request: Request, exc: SpotifyRateLimi
 
 @app.exception_handler(SpotifyApiError)
 async def handle_spotify_api_error(request: Request, exc: SpotifyApiError):
-    logging.error(f"Spotify API error: {exc}")
     if exc.status_code == 404:
         status_code = 404
+        log_level = logging.INFO
     elif exc.status_code // 100 == 5:
         status_code = 502
+        log_level = logging.WARNING
     else:
         status_code = exc.status_code
+        log_level = logging.WARNING
+    logging.log(log_level, "Spotify API error: %s", exc)
     return JSONResponse(
         status_code=status_code,
         content={"detail": "Spotify API error"}
