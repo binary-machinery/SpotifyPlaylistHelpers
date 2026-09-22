@@ -2,13 +2,11 @@ from datetime import datetime
 
 from sph_backend.spotify.client import SpotifyClient
 from sph_backend.spotify.models import SimplifiedPlaylist, Playlist, Album, Artist, Track
-from sph_backend.users import User
 
 
 class SpotifyPlaylistService:
-    def __init__(self, spotify_client: SpotifyClient, current_user: User):
+    def __init__(self, spotify_client: SpotifyClient):
         self._spotify_client = spotify_client
-        self._user_id = current_user.user_id
 
     async def get_playlists(self) -> list[SimplifiedPlaylist]:
         json = await self._spotify_client.get_paginated_items(
@@ -197,7 +195,7 @@ class SpotifyPlaylistService:
         if result_playlist_id is None:
             # TODO: move playlist creation to a separate function
             result_json = await self._spotify_client.post(
-                f"/users/{self._user_id}/playlists",
+                f"/me/playlists",
                 json={"name": f"delivery-{keyword}-{playlist_name}", "public": False}
             )
             result_playlist_id = result_json["id"]
@@ -248,7 +246,7 @@ class SpotifyPlaylistService:
         if result_playlist_id is None:
             # TODO: move playlist creation to a separate function
             result_json = await self._spotify_client.post(
-                f"/users/{self._user_id}/playlists",
+                f"/me/playlists",
                 json={"name": f"delivery-duplicates-{playlist_name}", "public": False}
             )
             result_playlist_id = result_json["id"]
