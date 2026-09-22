@@ -19,22 +19,6 @@ app = Flask(__name__)
 app.secret_key = config["server"]["secret_key"]
 
 
-@app.route("/playlist_new_releases/select_playlist", methods=["GET"])
-@login_required
-def playlist_new_releases_select_playlist():
-    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
-    return render_template("playlist_selector.html", playlists=playlists, callback="/playlist_new_releases?")
-
-
-@app.route("/playlist_new_releases", methods=["GET"])
-@login_required
-def playlist_new_releases():
-    playlist_id = request.args.get("playlist_id")
-    latest_dates, releases = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
-        .get_new_releases_for_playlist(playlist_id)
-    return render_template("playlist_new_releases.html", latest_dates=latest_dates, releases=releases)
-
-
 @app.route("/add_artist_to_playlist/select_playlist", methods=["GET"])
 @login_required
 def add_artist_to_playlist_select_playlist():
