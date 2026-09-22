@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from sph_backend.api import schemas
-from sph_backend.api.dependencies import SpotifyServiceDep
+from sph_backend.api.dependencies import SpotifyServiceDep, CurrentUserDep
 
 router = APIRouter(
     prefix="/playlists",
@@ -41,4 +41,18 @@ async def subtract_playlist_from_playlist(
         playlist_id: str, spotify_services: SpotifyServiceDep, target_playlist_id: str
 ) -> schemas.GenericSuccess:
     await spotify_services.subtract_playlist(playlist_id, target_playlist_id)
+    return schemas.GenericSuccess()
+
+
+@router.post("/{playlist_id}/find-tracks")
+async def find_tracks_from_playlist(
+        playlist_id: str, spotify_services: SpotifyServiceDep, current_user: CurrentUserDep,
+        keyword: str, result_playlist_id: str | None = None
+) -> schemas.GenericSuccess:
+    await spotify_services.find_tracks_in_playlist(
+        user_id=current_user.user_id,
+        playlist_id=playlist_id,
+        keyword=keyword,
+        result_playlist_id=result_playlist_id
+    )
     return schemas.GenericSuccess()

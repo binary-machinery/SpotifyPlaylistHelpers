@@ -18,27 +18,6 @@ app.secret_key = config["server"]["secret_key"]
 
 
 
-@app.route("/delivery/filter/select_playlist", methods=["GET"])
-@login_required
-def delivery_filter_select_playlist():
-    keyword = request.args.get("keyword")
-    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
-    return render_template("playlist_selector.html",
-                           playlists=playlists,
-                           callback=f"/delivery/filter?keyword={keyword}&")
-
-
-@app.route("/delivery/filter", methods=["GET"])
-@login_required
-def delivery_filter():
-    playlist_id = request.args.get("playlist_id")
-    keyword = request.args.get("keyword")
-    SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
-        .filter_playlist(current_user.user_id, playlist_id, keyword)
-    return render_template("result.html",
-                           callback="/")
-
-
 @app.route("/delivery/filter_duplicates/select_playlist", methods=["GET"])
 @login_required
 def delivery_filter_duplicates_select_playlist():

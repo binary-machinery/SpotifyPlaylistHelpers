@@ -162,6 +162,7 @@ class SpotifyPlaylistService:
             track_json = {"uri": item["track"]["uri"]}
             track_jsons.append(track_json)
 
+        # TODO: move playlist write to a separate function
         for i in range(0, len(track_jsons), 100):
             chunk = track_jsons[i:i + 100]
             await self._spotify_client.delete(
@@ -169,7 +170,9 @@ class SpotifyPlaylistService:
                 json={"items": chunk}
             )
 
-    async def find_tracks_in_playlist(self, user_id: str, playlist_id: str, keyword: str):
+    async def find_tracks_in_playlist(self, user_id: str, playlist_id: str, keyword: str,
+                                      result_playlist_id: str | None = None):
+        # TODO: return amount of found tracks
         # TODO: call get_playlist here (and add uri to Track)
         simplified_playlist_json = await self._spotify_client.get(
             f"/playlists/{playlist_id}",
@@ -183,24 +186,29 @@ class SpotifyPlaylistService:
         )
 
         track_uris = []
+        keyword = keyword.lower()
         for item in items:
             if keyword in item["track"]["name"].lower():
                 track_uris.append(item["track"]["uri"])
 
-        result_json = await self._spotify_client.post(
-            f"/users/{user_id}/playlists",
-            json={"name": f"delivery-{keyword}-{playlist_name}", "public": False}
-        )
+        if result_playlist_id is None:
+            # TODO: move playlist creation to a separate function
+            result_json = await self._spotify_client.post(
+                f"/users/{user_id}/playlists",
+                json={"name": f"delivery-{keyword}-{playlist_name}", "public": False}
+            )
+            result_playlist_id = result_json["id"]
 
-        tmp_playlist_id = result_json["id"]
+        # TODO: move playlist write to a separate function
         for i in range(0, len(track_uris), 100):
             chunk = track_uris[i:i + 100]
             await self._spotify_client.post(
-                f"/playlists/{tmp_playlist_id}/items",
+                f"/playlists/{result_playlist_id}/items",
                 json={"uris": chunk}
             )
 
     async def find_duplicates(self, user_id: str, playlist_id: str):
+        # TODO: return amount of found tracks
         # TODO: call get_playlist here (and add uri to Track)
         simplified_playlist_json = await self._spotify_client.get(
             f"/playlists/{playlist_id}",
@@ -234,6 +242,7 @@ class SpotifyPlaylistService:
                             track_uris.append(track_j["uri"])
                     continue
 
+        # TODO: move playlist creation to a separate function
         result_json = await self._spotify_client.post(
             f"/users/{user_id}/playlists",
             json={"name": f"delivery-duplicates-{playlist_name}", "public": False}
