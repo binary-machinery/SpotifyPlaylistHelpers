@@ -18,7 +18,7 @@ async def get_playlists(spotify_service: SpotifyServiceDep) -> schemas.Page[sche
     )
 
 
-@router.get("/{playlist_id}/releases")
+@router.get("/{playlist_id}/new-releases")
 async def get_new_releases_for_playlist(playlist_id: str, spotify_service: SpotifyServiceDep) \
         -> schemas.Page[schemas.ArtistReleases]:
     latest_dates, releases = await spotify_service.get_new_releases_for_playlist(playlist_id)
@@ -27,3 +27,10 @@ async def get_new_releases_for_playlist(playlist_id: str, spotify_service: Spoti
         items=[schemas.ArtistReleases.from_domain(artist, artist_releases)
                for artist, artist_releases in releases.items()]
     )
+
+
+@router.post("/{playlist_id}/add-artist")
+async def add_artist_to_playlist(playlist_id: str, spotify_services: SpotifyServiceDep, artist_id: str) \
+        -> schemas.GenericSuccess:
+    await spotify_services.add_artist_to_playlist(playlist_id, artist_id)
+    return schemas.GenericSuccess()

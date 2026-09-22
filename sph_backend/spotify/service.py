@@ -109,7 +109,7 @@ class SpotifyPlaylistService:
             artist_result.sort(key=lambda album: album.release_date)
         return latest_dates, result
 
-    async def add_artist_to_playlist(self, playlist_id: str, artist_id: str):
+    async def add_artist_to_playlist(self, playlist_id: str, artist_id: str) -> None:
         albums_json = await self._spotify_client.get_paginated_items(
             endpoint=f"/artists/{artist_id}/albums",
             params={

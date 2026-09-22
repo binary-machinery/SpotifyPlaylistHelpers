@@ -15,6 +15,10 @@ class Health(BaseModel):
     status: Literal["ok"]
 
 
+class GenericSuccess(BaseModel):
+    status: Literal["ok"] = "ok"
+
+
 class AuthStatus(BaseModel):
     status: Literal["authenticated", "logged out"]
 

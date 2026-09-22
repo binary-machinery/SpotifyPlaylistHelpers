@@ -1,5 +1,4 @@
-import secrets
-import urllib.parse
+from flask import Flask
 from flask import Flask
 from flask import Response
 from flask import jsonify
@@ -8,42 +7,14 @@ from flask import render_template
 from flask import request
 from flask import session
 from flask_login import LoginManager, login_user, current_user, login_required
-
 from sph_backend.config_loader import ConfigLoader
-from sph_backend.spotify.client import SpotifyAuth, SpotifyClient
-from sph_backend.users import User, UsersDb
+
+from sph_backend.spotify.client import SpotifyClient
 
 config = ConfigLoader.load()
 
 app = Flask(__name__)
 app.secret_key = config["server"]["secret_key"]
-
-
-@app.route("/add_artist_to_playlist/select_playlist", methods=["GET"])
-@login_required
-def add_artist_to_playlist_select_playlist():
-    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
-    return render_template("playlist_selector.html",
-                           playlists=playlists, callback="/add_artist_to_playlist/select_artist?")
-
-
-@app.route("/add_artist_to_playlist/select_artist", methods=["GET"])
-@login_required
-def add_artist_to_playlist_select_artist():
-    playlist_id = request.args.get("playlist_id")
-    return render_template("add_artist_to_playlist_select_artist.html",
-                           playlist_id=playlist_id)
-
-
-@app.route("/add_artist_to_playlist", methods=["GET"])
-@login_required
-def add_artist_to_playlist():
-    playlist_id = request.args.get("playlist_id")
-    artist_id = request.args.get("artist_id")
-    SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
-        .add_artist_to_playlist(playlist_id, artist_id)
-    return render_template("result.html",
-                           callback=f"/add_artist_to_playlist/select_artist?playlist_id={playlist_id}")
 
 
 @app.route("/subtract_playlist/select_playlist1", methods=["GET"])
