@@ -44,8 +44,8 @@ async def subtract_playlist_from_playlist(
     return schemas.GenericSuccess()
 
 
-@router.post("/{playlist_id}/find-tracks")
-async def find_tracks_from_playlist(
+@router.post("/{playlist_id}/extract-tracks")
+async def extract_tracks_from_playlist_by_keyword(
         playlist_id: str, spotify_services: SpotifyServiceDep, current_user: CurrentUserDep,
         keyword: str, result_playlist_id: str | None = None
 ) -> schemas.GenericSuccess:
@@ -53,6 +53,19 @@ async def find_tracks_from_playlist(
         user_id=current_user.user_id,
         playlist_id=playlist_id,
         keyword=keyword,
+        result_playlist_id=result_playlist_id
+    )
+    return schemas.GenericSuccess()
+
+
+@router.post("/{playlist_id}/extract-duplicates")
+async def extract_duplicates_from_playlist(
+        playlist_id: str, spotify_services: SpotifyServiceDep, current_user: CurrentUserDep,
+        result_playlist_id: str | None = None
+) -> schemas.GenericSuccess:
+    await spotify_services.find_duplicates(
+        user_id=current_user.user_id,
+        playlist_id=playlist_id,
         result_playlist_id=result_playlist_id
     )
     return schemas.GenericSuccess()
