@@ -18,36 +18,6 @@ config = ConfigLoader.load()
 app = Flask(__name__)
 app.secret_key = config["server"]["secret_key"]
 
-# Lax keeps the session and "remember me" cookies off cross-site subresource requests,
-# so a third-party page cannot trigger a mutating endpoint with an <img> tag.
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
-
-login_manager = LoginManager()
-login_manager.init_app(app)
-
-users_db = UsersDb()
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    return users_db.get_user(user_id)
-
-
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify({"status": "Healthy"}), 200
-
-
-@app.route("/", methods=["GET"])
-def index():
-    user = None
-    if current_user.is_authenticated:
-        response = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get("/me")
-        if response.ok:
-            user = response.json()["display_name"]
-    return render_template("index.html", user=user)
-
 
 @app.route("/playlist_new_releases/select_playlist", methods=["GET"])
 @login_required
@@ -162,52 +132,3 @@ def delivery_filter_duplicates():
         .filter_duplicates(current_user.user_id, playlist_id)
     return render_template("result.html",
                            callback="/")
-
-
-@app.route("/auth", methods=["GET"])
-def auth():
-    state = secrets.token_urlsafe(32)
-    session["oauth_state"] = state
-    auth_url = "https://accounts.spotify.com/authorize?"
-    params = {
-        "client_id": config["spotify"]["client_id"],
-        "response_type": "code",
-        "scope": "playlist-modify-public playlist-read-private playlist-modify-private",
-        "redirect_uri": config["server"]["host"] + "/auth_callback",
-        "state": state
-    }
-    return redirect(auth_url + urllib.parse.urlencode(params))
-
-
-@app.route("/auth_callback", methods=["GET"])
-def auth_callback():
-    expected_state = session.pop("oauth_state", None)
-    if not expected_state or not secrets.compare_digest(request.args.get("state", ""), expected_state):
-        return Response("Invalid OAuth state", status=400)
-
-    code = request.args.get("code")
-    if not code:
-        return Response(request.args.get("error"), status=400)
-
-    response = SpotifyAuth(config).token(code)
-    if not response.ok:
-        return Response(response.text, status=response.status_code)
-
-    access_token = response.json().get("access_token")
-    refresh_token = response.json().get("refresh_token")
-
-    response = SpotifyClient(config, users_db, access_token, refresh_token).get("/me")
-    if response.ok:
-        user = User(
-            response.json()["id"],
-            access_token,
-            refresh_token
-        )
-        users_db.set_user(user)
-        login_user(user, remember=True)
-
-    return redirect("/")
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=config["server"]["port"])
