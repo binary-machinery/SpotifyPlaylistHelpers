@@ -2,11 +2,13 @@ from datetime import datetime
 
 from sph_backend.spotify.client import SpotifyClient
 from sph_backend.spotify.models import SimplifiedPlaylist, Playlist, Album, Artist, Track
+from sph_backend.users import User
 
 
 class SpotifyPlaylistService:
-    def __init__(self, spotify_client: SpotifyClient):
+    def __init__(self, spotify_client: SpotifyClient, current_user: User):
         self._spotify_client = spotify_client
+        self._user_id = current_user.user_id
 
     async def get_playlists(self) -> list[SimplifiedPlaylist]:
         json = await self._spotify_client.get_paginated_items(
@@ -171,7 +173,7 @@ class SpotifyPlaylistService:
             )
 
     async def find_tracks_in_playlist(
-            self, user_id: str, playlist_id: str, keyword: str, result_playlist_id: str | None = None
+            self, playlist_id: str, keyword: str, result_playlist_id: str | None = None
     ) -> None:
         # TODO: return link to the result playlist and amount of found tracks
         # TODO: call get_playlist here (and add uri to Track)
@@ -195,7 +197,7 @@ class SpotifyPlaylistService:
         if result_playlist_id is None:
             # TODO: move playlist creation to a separate function
             result_json = await self._spotify_client.post(
-                f"/users/{user_id}/playlists",
+                f"/users/{self._user_id}/playlists",
                 json={"name": f"delivery-{keyword}-{playlist_name}", "public": False}
             )
             result_playlist_id = result_json["id"]
@@ -208,7 +210,7 @@ class SpotifyPlaylistService:
                 json={"uris": chunk}
             )
 
-    async def find_duplicates(self, user_id: str, playlist_id: str, result_playlist_id: str | None = None) -> None:
+    async def find_duplicates(self, playlist_id: str, result_playlist_id: str | None = None) -> None:
         # TODO: return link to the result playlist and amount of found tracks
         # TODO: call get_playlist here (and add uri to Track)
         simplified_playlist_json = await self._spotify_client.get(
@@ -246,7 +248,7 @@ class SpotifyPlaylistService:
         if result_playlist_id is None:
             # TODO: move playlist creation to a separate function
             result_json = await self._spotify_client.post(
-                f"/users/{user_id}/playlists",
+                f"/users/{self._user_id}/playlists",
                 json={"name": f"delivery-duplicates-{playlist_name}", "public": False}
             )
             result_playlist_id = result_json["id"]

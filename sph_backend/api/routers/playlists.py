@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from sph_backend.api import schemas
-from sph_backend.api.dependencies import SpotifyServiceDep, CurrentUserDep
+from sph_backend.api.dependencies import SpotifyServiceDep
 
 router = APIRouter(
     prefix="/playlists",
@@ -46,11 +46,9 @@ async def subtract_playlist_from_playlist(
 
 @router.post("/{playlist_id}/extract-tracks")
 async def extract_tracks_from_playlist_by_keyword(
-        playlist_id: str, spotify_services: SpotifyServiceDep, current_user: CurrentUserDep,
-        keyword: str, result_playlist_id: str | None = None
+        playlist_id: str, spotify_services: SpotifyServiceDep, keyword: str, result_playlist_id: str | None = None
 ) -> schemas.GenericSuccess:
     await spotify_services.find_tracks_in_playlist(
-        user_id=current_user.user_id,
         playlist_id=playlist_id,
         keyword=keyword,
         result_playlist_id=result_playlist_id
@@ -60,11 +58,9 @@ async def extract_tracks_from_playlist_by_keyword(
 
 @router.post("/{playlist_id}/extract-duplicates")
 async def extract_duplicates_from_playlist(
-        playlist_id: str, spotify_services: SpotifyServiceDep, current_user: CurrentUserDep,
-        result_playlist_id: str | None = None
+        playlist_id: str, spotify_services: SpotifyServiceDep, result_playlist_id: str | None = None
 ) -> schemas.GenericSuccess:
     await spotify_services.find_duplicates(
-        user_id=current_user.user_id,
         playlist_id=playlist_id,
         result_playlist_id=result_playlist_id
     )

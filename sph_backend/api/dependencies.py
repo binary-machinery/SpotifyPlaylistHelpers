@@ -30,6 +30,8 @@ def get_current_user(request: Request, users_db: UsersDbDep) -> User:
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    if not isinstance(user_id, str):
+        raise HTTPException(status_code=401, detail="Incorrect user id")
     user = users_db.get_user(user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
