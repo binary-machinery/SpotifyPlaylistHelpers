@@ -151,6 +151,7 @@ class SpotifyPlaylistService:
             )
 
     async def subtract_playlist(self, playlist_id1: str, playlist_id2: str):
+        # TODO: return amount of deleted tracks
         playlist2_tracks = await self._spotify_client.get_paginated_items(
             f"/playlists/{playlist_id2}/items",
             limit=50
@@ -165,7 +166,7 @@ class SpotifyPlaylistService:
             chunk = track_jsons[i:i + 100]
             await self._spotify_client.delete(
                 f"/playlists/{playlist_id1}/items",
-                json={"tracks": chunk}
+                json={"items": chunk}
             )
 
     async def find_tracks_in_playlist(self, user_id: str, playlist_id: str, keyword: str):

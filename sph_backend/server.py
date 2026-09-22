@@ -17,37 +17,6 @@ app = Flask(__name__)
 app.secret_key = config["server"]["secret_key"]
 
 
-@app.route("/subtract_playlist/select_playlist1", methods=["GET"])
-@login_required
-def subtract_playlist_select_playlist1():
-    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
-    return render_template("playlist_selector.html",
-                           playlists=playlists,
-                           header="Select playlist 1",
-                           callback="/subtract_playlist/select_playlist2?")
-
-
-@app.route("/subtract_playlist/select_playlist2", methods=["GET"])
-@login_required
-def subtract_playlist_select_playlist2():
-    playlist_id1 = request.args.get("playlist_id")
-    playlists = SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token).get_playlists()
-    return render_template("playlist_selector.html",
-                           playlists=playlists,
-                           header="Select playlist 2",
-                           callback=f"/subtract_playlist?playlist_id1={playlist_id1}&")
-
-
-@app.route("/subtract_playlist", methods=["GET"])
-@login_required
-def subtract_playlist():
-    playlist_id1 = request.args.get("playlist_id1")
-    playlist_id2 = request.args.get("playlist_id")
-    SpotifyClient(config, users_db, current_user.access_token, current_user.refresh_token) \
-        .subtract_playlist(playlist_id1, playlist_id2)
-    return render_template("result.html",
-                           callback="/")
-
 
 @app.route("/delivery/filter/select_playlist", methods=["GET"])
 @login_required

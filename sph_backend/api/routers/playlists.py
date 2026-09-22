@@ -34,3 +34,11 @@ async def add_artist_to_playlist(playlist_id: str, spotify_services: SpotifyServ
         -> schemas.GenericSuccess:
     await spotify_services.add_artist_to_playlist(playlist_id, artist_id)
     return schemas.GenericSuccess()
+
+
+@router.post("/{playlist_id}/subtract-playlist")
+async def subtract_playlist_from_playlist(
+        playlist_id: str, spotify_services: SpotifyServiceDep, target_playlist_id: str
+) -> schemas.GenericSuccess:
+    await spotify_services.subtract_playlist(playlist_id, target_playlist_id)
+    return schemas.GenericSuccess()
