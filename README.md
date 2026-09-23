@@ -1,41 +1,86 @@
 SpotifyPlaylistHelpers
 ======================
 
-A small Flask app with helper tools for managing Spotify playlists.
+A small FastAPI app with helper tools for managing Spotify playlists.
 
-This is an older app that I created in 2022 to organize my Spotify library. It's not in a production-ready quality,
-I used to run it in dev mode locally with ngrok when I needed it, it was for personal use only. I'm currently improving 
-it with modern backend practices and technologies for infrastructure and deployment.
+This is an older app that I created in 2022 using Flask to organize my Spotify library. It's not in a production-ready
+quality, I used to run it in dev mode locally with ngrok when I needed it, it was for personal use only. I'm currently
+improving it with modern backend practices and technologies for infrastructure and deployment.
 
 
 Features
 --------------
 
-- **New releases for a playlist** — for every artist in the playlist, finds the most recent release date among that
-  playlist's tracks, then lists the albums and singles that artist has put out since. A way to catch up on artists you
-  already listen to.
-- **Add an artist to a playlist** — appends every track from an artist's albums and singles to a playlist, oldest
-  release first.
-- **Subtract a playlist from a playlist** — removes from one playlist every track that appears in another.
-- **DeLivery: filter out a keyword** — gathers the tracks whose title contains a keyword (`live`, `instrumental`,
-  `inst.`, `remix`) into a new private playlist named `delivery-<keyword>-<playlist>`. Once you have reviewed it, use
-  "Subtract a playlist from a playlist" to remove those tracks from the original.
-- **DeLivery: filter out duplicates** — the same, for tracks that look like duplicates of each other (same title, same
-  artists), gathering the earlier-released copy of each pair. Currently broken, see `TODO.md`.
+The app is a JSON API with no UI of its own. Every playlist endpoint acts on behalf of the signed-in Spotify user.
 
-Signing in goes through Spotify's OAuth authorization code flow; the app requests the `playlist-read-private`,
-`playlist-modify-private` and `playlist-modify-public` scopes.
+### New releases for a playlist
+
+`GET /playlists/{playlist_id}/new-releases`
+
+For every artist in the playlist, finds the most recent release date among that playlist's tracks, then lists the
+albums and singles that artist has put out since. A way to catch up on artists you already listen to.
+
+### Add an artist to a playlist
+
+`POST /playlists/{playlist_id}/add-artist?artist_id=...`
+
+Appends every track from an artist's albums and singles to a playlist, oldest release first.
+
+### Subtract a playlist from a playlist
+
+`POST /playlists/{playlist_id}/subtract-playlist?target_playlist_id=...`
+
+Removes from one playlist every track that appears in another.
+
+### Extract tracks by keyword
+
+`POST /playlists/{playlist_id}/extract-tracks?keyword=...`
+
+Gathers the tracks whose title contains a keyword (case-insensitive, e.g. `live`, `instrumental`, `remix`) into a new
+private playlist named `delivery-<keyword>-<playlist>`, or into an existing one passed as `result_playlist_id`. Once you
+have reviewed it, use "Subtract a playlist from a playlist" to remove those tracks from the original.
+
+### Extract duplicates
+
+`POST /playlists/{playlist_id}/extract-duplicates`
+
+The same, for tracks that look like duplicates of each other (same title, same artists), gathering the earlier-released
+copy of each pair into `delivery-duplicates-<playlist>`, or into `result_playlist_id`. Currently broken: the artist
+comparison is a no-op, so tracks sharing a title and artist count are flagged regardless of the actual artists.
+
+### Other endpoints
+
+- `GET /playlists` — the current user's playlists.
+- `GET /auth` — redirects to Spotify's consent screen.
+- `GET /auth-callback` — where Spotify sends the user back after sign-in.
+- `GET /me` — the signed-in Spotify user.
+- `POST /logout` — clears the session and forgets the stored tokens.
+- `GET /health` — liveness check, used by the load balancer.
+
+FastAPI serves interactive docs at `/docs`.
+
+### Signing in
+
+Signing in goes through Spotify's OAuth authorization code flow (with a `state` check); the app requests the
+`playlist-read-private`, `playlist-modify-private` and `playlist-modify-public` scopes. The user's Spotify id is kept in
+a signed session cookie, and their access and refresh tokens in a SQLite database (`users.sqlite`). Open `/auth` in a
+browser to sign in; afterwards `/docs` in the same browser carries the session cookie, so the endpoints can be tried
+from there.
+
+### Errors
+
+Spotify errors are mapped to API responses: an auth failure becomes `401`, a rate limit `429` (with `Retry-After` when
+Spotify sent one), a Spotify `5xx` becomes `502`.
 
 
 Roadmap
 --------------
 
-- [**In Progress**] Configure AWS infrastructure
-- [**In Progress**] Use Poetry
-- [**In Progress**] Add semantic versioning
 - [**In Progress**] Rewrite with FastAPI
+- [**In Progress**] Configure AWS infrastructure
+- [**In Progress**] Add semantic versioning
 - [**TODO**] Configure CI/CD with GitHub Actions
-- [**TODO**] Fix "DeLivery: filter out duplicates"
+- [**TODO**] Fix "extract duplicates"
 - [**TODO**] Rewrite in Go
 - [**TODO**] Rewrite in Rust
 
@@ -43,68 +88,83 @@ Roadmap
 Configuration
 --------------
 
-The app reads its settings from `configs/config.json` on startup (`config_loader.py`). That file is gitignored because
-it carries the Spotify credentials; `configs/config_template.json` is the committed shape of it:
+Settings are loaded with `pydantic-settings` (`sph_backend/settings.py`) from environment variables and from a
+`settings.env` file in the working directory; environment variables win. `settings.env` is gitignored because it
+carries the Spotify credentials; `settings.env.example` is the committed shape of it:
 
-```json
-{
-  "server": {
-    "port": 3000,
-    "secret_key": "${FLASK_SECRET_KEY}",
-    "host": "${SERVER_HOST}"
-  },
-  "spotify": {
-    "client_id": "${SPOTIFY_CLIENT_ID}",
-    "client_secret": "${SPOTIFY_CLIENT_SECRET}"
-  }
-}
+```sh
+# required parameters
+SERVER_HOST=http://127.0.0.1:8000
+SERVER_SECRET=...
+SPOTIFY_CLIENT_ID=...
+SPOTIFY_CLIENT_SECRET=...
+
+# these have default values but can be overridden
+USERS_DB_PATH=users.sqlite
+AUTH_REDIRECT_ENDPOINT=/auth-callback
 ```
 
-- `server.port` — the port Flask listens on. `3000` everywhere: both compose files publish it and the load balancer
-  target group health-checks it.
-- `server.secret_key` — Flask session signing key. Any long random string.
-- `server.host` — the public origin the app is reached at, with scheme and no trailing slash. The Spotify redirect URI
-  is built from it as `<host>/auth_callback`. Spotify supports `http://127.0.0.1` for local development.
-- `spotify.client_id`, `spotify.client_secret` — credentials of an app registered in the Spotify developer dashboard.
+- `SERVER_HOST` — the public origin the app is reached at, with scheme and no trailing slash. The Spotify redirect URI
+  is built from it as `<SERVER_HOST><AUTH_REDIRECT_ENDPOINT>`.
+- `SERVER_SECRET` — session cookie signing key. Any long random string.
+- `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` — credentials of an app registered in the Spotify developer dashboard.
+- `USERS_DB_PATH` — path of the SQLite file holding users' tokens. Created on startup if missing.
+- `AUTH_REDIRECT_ENDPOINT` — path of the OAuth callback. Only change it together with the route.
+
+The app listens on port `8000`.
 
 ### Running locally
 
-Register an application at https://developer.spotify.com/dashboard, then copy the template and fill in the values:
+Register an application at https://developer.spotify.com/dashboard, then copy the example and fill in the values:
 
 ```sh
-cp configs/config_template.json configs/config.json
+cp settings.env.example settings.env
 ```
-Spotify will not redirect to an arbitrary address, so `server.host` has to be an origin it accepts and that reaches
-your machine. No need for ngrok anymore, Spotify supports `http://127.0.0.1` for local development, but the redirect URI
-must be configured in the app settings in the Spotify dev dashboard. For an actual host, HTTPS is required. 
 
-Then:
+Spotify will not redirect to an arbitrary address, so `SERVER_HOST` has to be an origin it accepts and that reaches
+your machine. Spotify supports `http://127.0.0.1` for local development; the redirect URI
+(`http://127.0.0.1:8000/auth-callback`) must be configured in the app settings in the Spotify dev dashboard. For an
+actual host, HTTPS is required.
+
+Then, with Docker:
 
 ```sh
 docker compose up --build
 ```
 
-`compose.yaml` mounts `configs/config.json` into the container read-only, so the file never ends up in the image.
+`compose.yaml` mounts `settings.env` into the container read-only, so the file never ends up in the image, and keeps
+the users database in the `data` volume.
 
-App is running at http://127.0.0.1:3000.
+Or directly, with Python 3.13 and Poetry:
+
+```sh
+poetry install
+poetry run uvicorn sph_backend.main:app --reload
+```
+
+App is running at http://127.0.0.1:8000. Sign in at http://127.0.0.1:8000/auth.
+
+### Tests
+
+```sh
+poetry run pytest
+```
 
 ### On the deployed host
 
-The `${...}` placeholders name SSM parameters under `/sph/<env>/`. `SERVER_HOST` is created by Terraform
-(`aws_infra/ssm.tf`) and points at the load balancer's DNS name. `FLASK_SECRET_KEY`, `SPOTIFY_CLIENT_ID` and
-`SPOTIFY_CLIENT_SECRET` are SecureStrings added by hand, deliberately outside Terraform so they stay out of the state
-file.
-
-Rendering the template into `config.json` on the instance is not automated yet — it is part of the in-progress CI/CD
-work, and for now the file is placed on the host manually next to `compose.prod.yaml`.
-
-`compose.prod.yaml` also expects a `.env` file beside it, holding the image to pull. Copy `.env.example` and fill in
-the repository URL from the Terraform output:
+Deployment is a work in progress. `compose.prod.yaml` pulls the image from ECR and expects a `.env` file beside it
+naming the image. Copy `.env.example` and fill in the repository URL from the Terraform output:
 
 ```sh
 cp .env.example .env
 cd aws_infra && terraform output -raw ecr_repository_url
 ```
+
+The app settings are meant to come from SSM parameters under `/sph/<env>/`, named like the variables above.
+`SERVER_HOST` is created by Terraform (`aws_infra/ssm.tf`) and points at the load balancer's DNS name. `SERVER_SECRET`,
+`SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` are SecureStrings added by hand, deliberately outside Terraform so they
+stay out of the state file. Passing them into the container is not wired up yet — it is part of the in-progress CI/CD
+work.
 
 
 Infrastructure

@@ -1,5 +1,5 @@
 # do not commit secrets, local vars and working data
-config.json
+settings.env
 users.sqlite
 aws_infra/local.auto.tfvars
 aws_infra/backends/local.s3.tfbackend
