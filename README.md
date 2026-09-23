@@ -14,7 +14,6 @@ Roadmap
 - [**Done**] Rewrite with FastAPI
 - [**In Progress**] Configure AWS infrastructure
 - [**TODO**] Configure CI/CD with GitHub Actions
-- [**TODO**] Fix "extract duplicates"
 - [**TODO**] Rewrite in Go
 - [**TODO**] Rewrite in Rust
 

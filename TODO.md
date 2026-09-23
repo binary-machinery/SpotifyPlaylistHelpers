@@ -7,24 +7,16 @@ Findings from a code review of the project. Ordered roughly by importance.
 BUGS
 ----
 
-[ ] find_duplicates: the artist comparison is a no-op
-    sph_backend/spotify/service.py:232
-        for k in range(0, len(track_i["artists"])):
-            if track_i["artists"][k]["id"] != track_j["artists"][k]["id"]:
-                continue        # continues the k-loop, not the i/j comparison
-    Mismatched artists fall through to the name comparison anyway, so any two
-    tracks sharing a title and artist *count* are flagged as duplicates.
-    Fix: use break/else, or compare sets of artist ids.
-    Also: the trailing "continue" at line 244 is dead code, and the O(n^2)
-    scan re-parses album release dates on every comparison.
-
 [ ] Missing None / empty checks on Spotify responses
     item["track"] is None for removed and local tracks. get_playlist handles
-    it, but subtract_playlist (service.py:162), find_tracks_in_playlist
-    (service.py:192) and find_duplicates (service.py:227) do not.
+    it, but subtract_playlist, find_tracks_in_playlist and find_duplicates
+    (all in sph_backend/spotify/service.py) do not.
     track.artists[0] assumes a non-empty artist list
-    (_get_latest_song_by_artist_for_playlist, service.py:277).
+    (_get_latest_song_by_artist_for_playlist).
     Both raise on real-world playlists.
+    Related: local-file artists have id None, so find_duplicates treats two
+    same-titled local tracks as duplicates whenever their artist counts
+    match. Fall back to comparing artist names when the id is None.
 
 
 ROBUSTNESS

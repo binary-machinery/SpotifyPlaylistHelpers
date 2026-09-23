@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from sph_backend.spotify.session_client import SpotifySessionClient
 from sph_backend.spotify.models import SimplifiedPlaylist, Playlist, Album, Artist, Track
+from sph_backend.spotify.session_client import SpotifySessionClient
 
 
 class SpotifyPlaylistService:
@@ -225,13 +225,18 @@ class SpotifyPlaylistService:
         track_uris = []
         for i in range(0, len(items)):
             track_i = items[i]["track"]
+
             for j in range(i + 1, len(items)):
                 track_j = items[j]["track"]
+
                 if len(track_i["artists"]) != len(track_j["artists"]):
                     continue
-                for k in range(0, len(track_i["artists"])):
-                    if track_i["artists"][k]["id"] != track_j["artists"][k]["id"]:
-                        continue
+
+                artists_i = set([artist["id"] for artist in track_i["artists"]])
+                artists_j = set([artist["id"] for artist in track_j["artists"]])
+                if artists_i != artists_j:
+                    continue
+
                 if track_i["name"] == track_j["name"]:
                     release_date_i = self._parse_album_date(track_i["album"])
                     release_date_j = self._parse_album_date(track_j["album"])
@@ -241,7 +246,6 @@ class SpotifyPlaylistService:
                     else:
                         if track_j["uri"] not in track_uris:
                             track_uris.append(track_j["uri"])
-                    continue
 
         if result_playlist_id is None:
             # TODO: move playlist creation to a separate function
