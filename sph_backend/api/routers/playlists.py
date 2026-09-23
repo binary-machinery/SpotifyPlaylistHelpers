@@ -48,7 +48,7 @@ async def subtract_playlist_from_playlist(
 async def extract_tracks_from_playlist_by_keyword(
         playlist_id: str, spotify_services: SpotifyServiceDep, keyword: str, result_playlist_id: str | None = None
 ) -> schemas.GenericSuccess:
-    await spotify_services.find_tracks_in_playlist(
+    await spotify_services.extract_tracks_from_playlist(
         playlist_id=playlist_id,
         keyword=keyword,
         result_playlist_id=result_playlist_id
@@ -60,7 +60,7 @@ async def extract_tracks_from_playlist_by_keyword(
 async def extract_duplicates_from_playlist(
         playlist_id: str, spotify_services: SpotifyServiceDep, result_playlist_id: str | None = None
 ) -> schemas.GenericSuccess:
-    await spotify_services.find_duplicates(
+    await spotify_services.extract_duplicates(
         playlist_id=playlist_id,
         result_playlist_id=result_playlist_id
     )

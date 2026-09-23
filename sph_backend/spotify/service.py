@@ -167,7 +167,7 @@ class SpotifyPlaylistService:
 
         await self._delete_tracks_from_playlist(playlist_id=playlist_id1, uris=track_uris)
 
-    async def find_tracks_in_playlist(
+    async def extract_tracks_from_playlist(
             self, playlist_id: str, keyword: str, result_playlist_id: str | None = None
     ) -> None:
         # TODO: return link to the result playlist and amount of found tracks
@@ -186,7 +186,7 @@ class SpotifyPlaylistService:
 
         await self._write_tracks_to_playlist(result_playlist_id, track_uris)
 
-    async def find_duplicates(self, playlist_id: str, result_playlist_id: str | None = None) -> None:
+    async def extract_duplicates(self, playlist_id: str, result_playlist_id: str | None = None) -> None:
         # TODO: return link to the result playlist and amount of found tracks
         playlist = await self.get_playlist(playlist_id)
         duplicate_uris = {}  # use dict keys instead of set to keep order
