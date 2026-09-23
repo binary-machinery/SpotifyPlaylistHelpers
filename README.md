@@ -46,7 +46,7 @@ Removes from one playlist every track that appears in another.
 `POST /playlists/{playlist_id}/extract-tracks?keyword=...`
 
 Gathers the tracks whose title contains a keyword (case-insensitive, e.g. `live`, `instrumental`, `remix`) into a new
-private playlist named `delivery-<keyword>-<playlist>`, or into an existing one passed as `result_playlist_id`. Once you
+private playlist named `<playlist>-<keyword>`, or into an existing one passed as `result_playlist_id`. Once you
 have reviewed it, use "Subtract a playlist from a playlist" to remove those tracks from the original.
 
 ### Extract duplicates
@@ -54,7 +54,7 @@ have reviewed it, use "Subtract a playlist from a playlist" to remove those trac
 `POST /playlists/{playlist_id}/extract-duplicates`
 
 The same, for tracks that look like duplicates of each other (same title, same artists), gathering the earlier-released
-copy of each pair into `delivery-duplicates-<playlist>`, or into `result_playlist_id`. Currently broken: the artist
+copy of each pair into `<playlist>-duplicates`, or into `result_playlist_id`. Currently broken: the artist
 comparison is a no-op, so tracks sharing a title and artist count are flagged regardless of the actual artists.
 
 ### Other endpoints

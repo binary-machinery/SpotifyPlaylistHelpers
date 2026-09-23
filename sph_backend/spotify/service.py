@@ -188,12 +188,7 @@ class SpotifyPlaylistService:
                 track_uris.append(item["track"]["uri"])
 
         if result_playlist_id is None:
-            # TODO: move playlist creation to a separate function
-            result_json = await self._spotify_session_client.post(
-                "/me/playlists",
-                json={"name": f"delivery-{keyword}-{playlist_name}", "public": False}
-            )
-            result_playlist_id = result_json["id"]
+            result_playlist_id = await self._create_playlist(f"{playlist_name}-{keyword}")
 
         if result_playlist_id is None:
             raise SpotifyApiError(status_code=502, body="Failed to create a playlist")
@@ -214,7 +209,7 @@ class SpotifyPlaylistService:
             limit=50
         )
 
-        duplicate_uris = {}  # use dict to keep order
+        duplicate_uris = {}  # use dict keys instead of set to keep order
         track_index = {}
         for item in items:
             track = item["track"]
@@ -233,19 +228,14 @@ class SpotifyPlaylistService:
                     track_index[key] = track
 
         if result_playlist_id is None:
-            # TODO: move playlist creation to a separate function
-            result_json = await self._spotify_session_client.post(
-                "/me/playlists",
-                json={"name": f"delivery-duplicates-{playlist_name}", "public": False}
-            )
-            result_playlist_id = result_json["id"]
+            result_playlist_id = await self._create_playlist(f"{playlist_name}-duplicates")
 
         if result_playlist_id is None:
             raise SpotifyApiError(status_code=502, body="Failed to create a playlist")
 
         await self._write_tracks_to_playlist(
             playlist_id=result_playlist_id,
-            uris=duplicate_uris
+            uris=list(duplicate_uris.keys())
         )
 
     @staticmethod
@@ -268,6 +258,13 @@ class SpotifyPlaylistService:
             latest = max(track.album.release_date, result.get(track.artists[0], datetime.fromtimestamp(0)))
             result[track.artists[0]] = latest
         return result
+
+    async def _create_playlist(self, playlist_name: str):
+        result_json = await self._spotify_session_client.post(
+            "/me/playlists",
+            json={"name": playlist_name, "public": False}
+        )
+        return result_json["id"]
 
     async def _write_tracks_to_playlist(self, playlist_id: str, uris: list[str]) -> None:
         # uris param format: ["spotify:track:4iV5W9uYEdYUVa79Axb7Rh","spotify:track:1301WleyT98MSxVHPZCA6M", "spotify:episode:512ojhOuo1ktJprKbVcKyQ"]
