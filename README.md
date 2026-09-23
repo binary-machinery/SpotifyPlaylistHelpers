@@ -76,7 +76,8 @@ Spotify sent one), a Spotify `5xx` becomes `502`.
 Roadmap
 --------------
 
-- [**In Progress**] Rewrite with FastAPI
+- [**Done**] Use Poetry
+- [**Done**] Rewrite with FastAPI
 - [**In Progress**] Configure AWS infrastructure
 - [**In Progress**] Add semantic versioning
 - [**TODO**] Configure CI/CD with GitHub Actions
