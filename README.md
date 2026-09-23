@@ -7,6 +7,16 @@ This is an older app that I created in 2022 using Flask to organize my Spotify l
 quality, I used to run it in dev mode locally with ngrok when I needed it, it was for personal use only. I'm currently
 improving it with modern backend practices and technologies for infrastructure and deployment.
 
+Roadmap
+--------------
+
+- [**Done**] Use Poetry
+- [**Done**] Rewrite with FastAPI
+- [**In Progress**] Configure AWS infrastructure
+- [**TODO**] Configure CI/CD with GitHub Actions
+- [**TODO**] Fix "extract duplicates"
+- [**TODO**] Rewrite in Go
+- [**TODO**] Rewrite in Rust
 
 Features
 --------------
@@ -71,18 +81,6 @@ from there.
 
 Spotify errors are mapped to API responses: an auth failure becomes `401`, a rate limit `429` (with `Retry-After` when
 Spotify sent one), a Spotify `5xx` becomes `502`.
-
-
-Roadmap
---------------
-
-- [**Done**] Use Poetry
-- [**Done**] Rewrite with FastAPI
-- [**In Progress**] Configure AWS infrastructure
-- [**TODO**] Configure CI/CD with GitHub Actions
-- [**TODO**] Fix "extract duplicates"
-- [**TODO**] Rewrite in Go
-- [**TODO**] Rewrite in Rust
 
 
 Configuration
@@ -178,10 +176,10 @@ There are two environments, `dev` and `prod`. They share the same Terraform
 configuration but keep **separate remote states** in the same S3 bucket, each
 under its own key:
 
-| Env    | Backend config                     | State key                  |
-|--------|------------------------------------|----------------------------|
-| `dev`  | `backends/dev.s3.tfbackend`        | `sph-dev/terraform.tfstate`  |
-| `prod` | `backends/prod.s3.tfbackend`       | `sph-prod/terraform.tfstate` |
+| Env    | Backend config               | State key                    |
+|--------|------------------------------|------------------------------|
+| `dev`  | `backends/dev.s3.tfbackend`  | `sph-dev/terraform.tfstate`  |
+| `prod` | `backends/prod.s3.tfbackend` | `sph-prod/terraform.tfstate` |
 
 Only locking and encryption — the settings that hold for anyone deploying this
 — live in the `backend "s3"` block in `main.tf`. The state key comes from the
@@ -262,7 +260,6 @@ merges the two into one backend configuration.
 
 - An EC2 key pair named `sph-<env>-maintainer-key` must already exist in the
   region; Terraform looks it up as a data source rather than creating it.
-
 
 License
 --------------
