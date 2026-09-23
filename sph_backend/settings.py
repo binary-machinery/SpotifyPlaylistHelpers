@@ -9,9 +9,14 @@ class Settings(BaseSettings):
 
     server_host: str
     server_secret: SecretStr
+    auth_redirect_endpoint: str = "/auth-callback"
     spotify_client_id: str
     spotify_client_secret: SecretStr
     users_db_path: str = "users.sqlite"
+
+    @property
+    def auth_redirect_url(self):
+        return self.server_host + self.auth_redirect_endpoint
 
 
 @lru_cache

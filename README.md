@@ -64,7 +64,7 @@ it carries the Spotify credentials; `configs/config_template.json` is the commit
   target group health-checks it.
 - `server.secret_key` — Flask session signing key. Any long random string.
 - `server.host` — the public origin the app is reached at, with scheme and no trailing slash. The Spotify redirect URI
-  is built from it as `<host>/auth_callback`. Spotify supports `http://127.0.0.1` for local development.
+  is built from it as `<host>/auth-callback`. Spotify supports `http://127.0.0.1` for local development.
 - `spotify.client_id`, `spotify.client_secret` — credentials of an app registered in the Spotify developer dashboard.
 
 ### Running locally

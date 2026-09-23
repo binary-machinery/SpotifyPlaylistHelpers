@@ -7,11 +7,11 @@ from sph_backend.settings import Settings
 from sph_backend.spotify.errors import SpotifyAuthError
 
 
-class SpotifyAuth:
+class SpotifyAuthApi:
     def __init__(self, http_client: httpx.AsyncClient, settings: Settings):
         self._http_client = http_client
         self._api_url = "https://accounts.spotify.com/api"
-        self._server_host = settings.server_host
+        self._redirect_url = settings.auth_redirect_url
 
         client_id = settings.spotify_client_id
         client_secret = settings.spotify_client_secret.get_secret_value()
@@ -24,7 +24,7 @@ class SpotifyAuth:
         return await self._http_post_token(data={
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": self._server_host + "/auth_callback"
+            "redirect_uri": self._redirect_url
         })
 
     async def refresh_user_token(self, refresh_token: str) -> dict[str, Any]:

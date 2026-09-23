@@ -1,20 +1,20 @@
 from datetime import datetime
 
-from sph_backend.spotify.client import SpotifyClient
+from sph_backend.spotify.session_client import SpotifySessionClient
 from sph_backend.spotify.models import SimplifiedPlaylist, Playlist, Album, Artist, Track
 
 
 class SpotifyPlaylistService:
-    def __init__(self, spotify_client: SpotifyClient):
-        self._spotify_client = spotify_client
+    def __init__(self, spotify_session_client: SpotifySessionClient):
+        self._spotify_session_client = spotify_session_client
 
     async def get_playlists(self) -> list[SimplifiedPlaylist]:
-        json = await self._spotify_client.get_paginated_items(
+        items = await self._spotify_session_client.get_paginated_items(
             endpoint="/me/playlists",
             limit=50
         )
         playlists = []
-        for playlist_json in json:
+        for playlist_json in items:
             playlist = SimplifiedPlaylist(
                 playlist_json["id"],
                 playlist_json["name"],
@@ -25,13 +25,13 @@ class SpotifyPlaylistService:
         return playlists
 
     async def get_playlist(self, playlist_id: str) -> Playlist:
-        playlist_json = await self._spotify_client.get(
+        playlist_json = await self._spotify_session_client.get(
             f"/playlists/{playlist_id}",
             params={
                 "fields": "id,name,owner(display_name)"
             }
         )
-        tracks_json = await self._spotify_client.get_paginated_items(
+        tracks_json = await self._spotify_session_client.get_paginated_items(
             endpoint=f"/playlists/{playlist_id}/items",
             params={
                 "fields": "total,items(track(id,name,album(id,name,release_date,release_date_precision,external_urls(spotify)),artists(id,name,external_urls(spotify))))"
@@ -81,7 +81,7 @@ class SpotifyPlaylistService:
         latest_dates = await self._get_latest_song_by_artist_for_playlist(playlist_id)
         result = {}
         for artist, latest_song_date in latest_dates.items():
-            items = await self._spotify_client.get_paginated_items(
+            items = await self._spotify_session_client.get_paginated_items(
                 endpoint=f"/artists/{artist.id}/albums",
                 params={
                     "market": "FI",
@@ -110,7 +110,7 @@ class SpotifyPlaylistService:
         return latest_dates, result
 
     async def add_artist_to_playlist(self, playlist_id: str, artist_id: str) -> None:
-        albums_json = await self._spotify_client.get_paginated_items(
+        albums_json = await self._spotify_session_client.get_paginated_items(
             endpoint=f"/artists/{artist_id}/albums",
             params={
                 "market": "FI",
@@ -132,7 +132,7 @@ class SpotifyPlaylistService:
         albums.sort(key=lambda x: x.release_date)
         track_uris = []
         for album in albums:
-            tracks_json = await self._spotify_client.get_paginated_items(
+            tracks_json = await self._spotify_session_client.get_paginated_items(
                 f"/albums/{album.id}/tracks",
                 params={
                     "market": "FI"
@@ -145,14 +145,14 @@ class SpotifyPlaylistService:
 
         for i in range(0, len(track_uris), 100):
             chunk = track_uris[i:i + 100]
-            await self._spotify_client.post(
+            await self._spotify_session_client.post(
                 f"/playlists/{playlist_id}/items",
                 json={"uris": chunk}
             )
 
     async def subtract_playlist(self, playlist_id1: str, playlist_id2: str) -> None:
         # TODO: return amount of deleted tracks
-        playlist2_tracks = await self._spotify_client.get_paginated_items(
+        playlist2_tracks = await self._spotify_session_client.get_paginated_items(
             f"/playlists/{playlist_id2}/items",
             limit=50
         )
@@ -165,7 +165,7 @@ class SpotifyPlaylistService:
         # TODO: move playlist write to a separate function
         for i in range(0, len(track_jsons), 100):
             chunk = track_jsons[i:i + 100]
-            await self._spotify_client.delete(
+            await self._spotify_session_client.delete(
                 f"/playlists/{playlist_id1}/items",
                 json={"items": chunk}
             )
@@ -175,13 +175,13 @@ class SpotifyPlaylistService:
     ) -> None:
         # TODO: return link to the result playlist and amount of found tracks
         # TODO: call get_playlist here (and add uri to Track)
-        simplified_playlist_json = await self._spotify_client.get(
+        simplified_playlist_json = await self._spotify_session_client.get(
             f"/playlists/{playlist_id}",
             params={"fields": "name"}
         )
         playlist_name = simplified_playlist_json["name"]
 
-        items = await self._spotify_client.get_paginated_items(
+        items = await self._spotify_session_client.get_paginated_items(
             f"/playlists/{playlist_id}/items",
             limit=50
         )
@@ -194,8 +194,8 @@ class SpotifyPlaylistService:
 
         if result_playlist_id is None:
             # TODO: move playlist creation to a separate function
-            result_json = await self._spotify_client.post(
-                f"/me/playlists",
+            result_json = await self._spotify_session_client.post(
+                "/me/playlists",
                 json={"name": f"delivery-{keyword}-{playlist_name}", "public": False}
             )
             result_playlist_id = result_json["id"]
@@ -203,7 +203,7 @@ class SpotifyPlaylistService:
         # TODO: move playlist write to a separate function
         for i in range(0, len(track_uris), 100):
             chunk = track_uris[i:i + 100]
-            await self._spotify_client.post(
+            await self._spotify_session_client.post(
                 f"/playlists/{result_playlist_id}/items",
                 json={"uris": chunk}
             )
@@ -211,13 +211,13 @@ class SpotifyPlaylistService:
     async def find_duplicates(self, playlist_id: str, result_playlist_id: str | None = None) -> None:
         # TODO: return link to the result playlist and amount of found tracks
         # TODO: call get_playlist here (and add uri to Track)
-        simplified_playlist_json = await self._spotify_client.get(
+        simplified_playlist_json = await self._spotify_session_client.get(
             f"/playlists/{playlist_id}",
             params={"fields": "name"}
         )
         playlist_name = simplified_playlist_json["name"]
 
-        items = await self._spotify_client.get_paginated_items(
+        items = await self._spotify_session_client.get_paginated_items(
             f"/playlists/{playlist_id}/items",
             limit=50
         )
@@ -245,8 +245,8 @@ class SpotifyPlaylistService:
 
         if result_playlist_id is None:
             # TODO: move playlist creation to a separate function
-            result_json = await self._spotify_client.post(
-                f"/me/playlists",
+            result_json = await self._spotify_session_client.post(
+                "/me/playlists",
                 json={"name": f"delivery-duplicates-{playlist_name}", "public": False}
             )
             result_playlist_id = result_json["id"]
@@ -254,7 +254,7 @@ class SpotifyPlaylistService:
         # TODO: move playlist write to a separate function
         for i in range(0, len(track_uris), 100):
             chunk = track_uris[i:i + 100]
-            await self._spotify_client.post(
+            await self._spotify_session_client.post(
                 f"/playlists/{result_playlist_id}/items",
                 json={"uris": chunk}
             )
