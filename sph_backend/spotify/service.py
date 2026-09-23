@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from sph_backend.spotify.errors import SpotifyApiError
 from sph_backend.spotify.models import SimplifiedPlaylist, Playlist, Album, Artist, Track
@@ -17,9 +18,9 @@ class SpotifyPlaylistService:
         playlists = []
         for playlist_json in items:
             playlist = SimplifiedPlaylist(
-                playlist_json["id"],
-                playlist_json["name"],
-                playlist_json["owner"]["display_name"]
+                id=playlist_json["id"],
+                name=playlist_json["name"],
+                owner=playlist_json["owner"]["display_name"]
             )
             playlists.append(playlist)
 
@@ -35,39 +36,40 @@ class SpotifyPlaylistService:
         tracks_json = await self._spotify_session_client.get_paginated_items(
             endpoint=f"/playlists/{playlist_id}/items",
             params={
-                "fields": "total,items(track(id,name,album(id,name,release_date,release_date_precision,external_urls(spotify)),artists(id,name,external_urls(spotify))))"
+                "fields": "total,items(track(id,uri,name,album(id,name,release_date,release_date_precision,external_urls(spotify)),artists(id,name,external_urls(spotify))))"
             },
             limit=50
         )
 
         tracks = []
         for track_meta_json in tracks_json:
-            track_json = track_meta_json.get("track")
+            track_json: dict[str, Any] | None = track_meta_json.get("track")
             if track_json is None:
                 continue
 
             album_json = track_json["album"]
             album = Album(
-                album_json["id"],
-                album_json["name"],
-                self._parse_album_date(album_json),
-                album_json["external_urls"]["spotify"]
+                id=album_json["id"],
+                name=album_json["name"],
+                release_date=self._parse_album_date(album_json),
+                link=album_json["external_urls"]["spotify"]
             )
 
             artists = []
             for artist_json in track_json["artists"]:
                 artist = Artist(
-                    artist_json["id"],
-                    artist_json["name"],
-                    artist_json["external_urls"]["spotify"]
+                    id=artist_json["id"],
+                    name=artist_json["name"],
+                    link=artist_json["external_urls"]["spotify"]
                 )
                 artists.append(artist)
 
             track = Track(
-                track_json["id"],
-                track_json["name"],
-                artists,
-                album
+                id=track_json["id"],
+                uri=track_json["uri"],
+                name=track_json["name"],
+                artists=artists,
+                album=album
             )
             tracks.append(track)
 
@@ -88,7 +90,7 @@ class SpotifyPlaylistService:
                     "market": "FI",
                     "include_groups": "album,single"
                 },
-                limit=20
+                limit=50
             )
 
             for album_json in items:
@@ -97,10 +99,10 @@ class SpotifyPlaylistService:
                     continue
 
                 album = Album(
-                    album_json["id"],
-                    album_json["name"],
-                    release_date,
-                    album_json["external_urls"]["spotify"]
+                    id=album_json["id"],
+                    name=album_json["name"],
+                    release_date=release_date,
+                    link=album_json["external_urls"]["spotify"]
                 )
                 if artist not in result:
                     result[artist] = []
@@ -123,10 +125,10 @@ class SpotifyPlaylistService:
         albums = []
         for album_json in albums_json:
             album = Album(
-                album_json["id"],
-                album_json["name"],
-                self._parse_album_date(album_json),
-                album_json["external_urls"]["spotify"]
+                id=album_json["id"],
+                name=album_json["name"],
+                release_date=self._parse_album_date(album_json),
+                link=album_json["external_urls"]["spotify"]
             )
             albums.append(album)
 
@@ -169,26 +171,15 @@ class SpotifyPlaylistService:
             self, playlist_id: str, keyword: str, result_playlist_id: str | None = None
     ) -> None:
         # TODO: return link to the result playlist and amount of found tracks
-        # TODO: call get_playlist here (and add uri to Track)
-        simplified_playlist_json = await self._spotify_session_client.get(
-            f"/playlists/{playlist_id}",
-            params={"fields": "name"}
-        )
-        playlist_name = simplified_playlist_json["name"]
-
-        items = await self._spotify_session_client.get_paginated_items(
-            f"/playlists/{playlist_id}/items",
-            limit=50
-        )
-
+        playlist = await self.get_playlist(playlist_id)
         track_uris = []
         keyword = keyword.lower()
-        for item in items:
-            if keyword in item["track"]["name"].lower():
-                track_uris.append(item["track"]["uri"])
+        for track in playlist.tracks:
+            if keyword in track.name.lower():
+                track_uris.append(track.uri)
 
         if result_playlist_id is None:
-            result_playlist_id = await self._create_playlist(f"{playlist_name}-{keyword}")
+            result_playlist_id = await self._create_playlist(f"{playlist.name}-{keyword}")
 
         if result_playlist_id is None:
             raise SpotifyApiError(status_code=502, body="Failed to create a playlist")
@@ -197,38 +188,24 @@ class SpotifyPlaylistService:
 
     async def find_duplicates(self, playlist_id: str, result_playlist_id: str | None = None) -> None:
         # TODO: return link to the result playlist and amount of found tracks
-        # TODO: call get_playlist here (and add uri to Track)
-        simplified_playlist_json = await self._spotify_session_client.get(
-            f"/playlists/{playlist_id}",
-            params={"fields": "name"}
-        )
-        playlist_name = simplified_playlist_json["name"]
-
-        items = await self._spotify_session_client.get_paginated_items(
-            f"/playlists/{playlist_id}/items",
-            limit=50
-        )
-
+        playlist = await self.get_playlist(playlist_id)
         duplicate_uris = {}  # use dict keys instead of set to keep order
-        track_index = {}
-        for item in items:
-            track = item["track"]
-            key = ":".join([artist["id"] for artist in track["artists"]])
-            key += ":" + track["name"]
+        track_index: dict[str, Track] = {}
+        for track in playlist.tracks:
+            key = ":".join([artist.id for artist in track.artists])
+            key += ":" + track.name
             if key not in track_index:
                 track_index[key] = track
             else:
                 prev_track = track_index[key]
-                release_date_cur = self._parse_album_date(track["album"])
-                release_date_prev = self._parse_album_date(prev_track["album"])
-                if release_date_cur < release_date_prev:
-                    duplicate_uris[track["uri"]] = None
+                if track.album.release_date < prev_track.album.release_date:
+                    duplicate_uris[track.uri] = None
                 else:
-                    duplicate_uris[prev_track["uri"]] = None
+                    duplicate_uris[prev_track.uri] = None
                     track_index[key] = track
 
         if result_playlist_id is None:
-            result_playlist_id = await self._create_playlist(f"{playlist_name}-duplicates")
+            result_playlist_id = await self._create_playlist(f"{playlist.name}-duplicates")
 
         if result_playlist_id is None:
             raise SpotifyApiError(status_code=502, body="Failed to create a playlist")

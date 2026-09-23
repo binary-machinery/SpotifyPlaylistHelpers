@@ -23,6 +23,7 @@ class Album:
 @dataclass
 class Track:
     id: str
+    uri: str
     name: str
     artists: list[Artist]
     album: Album
