@@ -1,6 +1,6 @@
 from datetime import datetime
-from itertools import batched
 
+from sph_backend.spotify.errors import SpotifyApiError
 from sph_backend.spotify.models import SimplifiedPlaylist, Playlist, Album, Artist, Track
 from sph_backend.spotify.session_client import SpotifySessionClient
 
@@ -158,18 +158,12 @@ class SpotifyPlaylistService:
             limit=50
         )
 
-        track_jsons = []
+        track_uris: list[dict[str, str]] = []
         for item in playlist2_tracks:
-            track_json = {"uri": item["track"]["uri"]}
-            track_jsons.append(track_json)
+            track_uri = {"uri": item["track"]["uri"]}
+            track_uris.append(track_uri)
 
-        # TODO: move playlist write to a separate function
-        for i in range(0, len(track_jsons), 100):
-            chunk = track_jsons[i:i + 100]
-            await self._spotify_session_client.delete(
-                f"/playlists/{playlist_id1}/items",
-                json={"items": chunk}
-            )
+        await self._delete_tracks_from_playlist(playlist_id=playlist_id1, uris=track_uris)
 
     async def find_tracks_in_playlist(
             self, playlist_id: str, keyword: str, result_playlist_id: str | None = None
@@ -201,13 +195,10 @@ class SpotifyPlaylistService:
             )
             result_playlist_id = result_json["id"]
 
-        # TODO: move playlist write to a separate function
-        for i in range(0, len(track_uris), 100):
-            chunk = track_uris[i:i + 100]
-            await self._spotify_session_client.post(
-                f"/playlists/{result_playlist_id}/items",
-                json={"uris": chunk}
-            )
+        if result_playlist_id is None:
+            raise SpotifyApiError(status_code=502, body="Failed to create a playlist")
+
+        await self._write_tracks_to_playlist(result_playlist_id, track_uris)
 
     async def find_duplicates(self, playlist_id: str, result_playlist_id: str | None = None) -> None:
         # TODO: return link to the result playlist and amount of found tracks
@@ -249,12 +240,13 @@ class SpotifyPlaylistService:
             )
             result_playlist_id = result_json["id"]
 
-        # TODO: move playlist write to a separate function
-        for chunk in batched(duplicate_uris, 100):
-            await self._spotify_session_client.post(
-                f"/playlists/{result_playlist_id}/items",
-                json={"uris": chunk}
-            )
+        if result_playlist_id is None:
+            raise SpotifyApiError(status_code=502, body="Failed to create a playlist")
+
+        await self._write_tracks_to_playlist(
+            playlist_id=result_playlist_id,
+            uris=duplicate_uris
+        )
 
     @staticmethod
     def _parse_album_date(album_json):
@@ -276,3 +268,23 @@ class SpotifyPlaylistService:
             latest = max(track.album.release_date, result.get(track.artists[0], datetime.fromtimestamp(0)))
             result[track.artists[0]] = latest
         return result
+
+    async def _write_tracks_to_playlist(self, playlist_id: str, uris: list[str]) -> None:
+        # uris param format: ["spotify:track:4iV5W9uYEdYUVa79Axb7Rh","spotify:track:1301WleyT98MSxVHPZCA6M", "spotify:episode:512ojhOuo1ktJprKbVcKyQ"]
+        # Spotify API format: `{"uris": ["spotify:track:4iV5W9uYEdYUVa79Axb7Rh","spotify:track:1301WleyT98MSxVHPZCA6M", "spotify:episode:512ojhOuo1ktJprKbVcKyQ"]}`
+        await self._spotify_session_client.post_in_chunks(
+            endpoint=f"/playlists/{playlist_id}/items",
+            items=uris,
+            chunk_field_name="uris",
+            chunk_size=100
+        )
+
+    async def _delete_tracks_from_playlist(self, playlist_id: str, uris: list[dict[str, str]]) -> None:
+        # uris param format: `[{ "uri": "spotify:track:4iV5W9uYEdYUVa79Axb7Rh" },{ "uri": "spotify:track:1301WleyT98MSxVHPZCA6M" }]`
+        # Spotify API format: `{ "items": [{ "uri": "spotify:track:4iV5W9uYEdYUVa79Axb7Rh" },{ "uri": "spotify:track:1301WleyT98MSxVHPZCA6M" }] }`
+        await self._spotify_session_client.delete_in_chunks(
+            endpoint=f"/playlists/{playlist_id}/items",
+            items=uris,
+            chunk_field_name="items",
+            chunk_size=100,
+        )

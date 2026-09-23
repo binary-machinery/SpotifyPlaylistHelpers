@@ -1,4 +1,5 @@
-from typing import Any, Callable
+from itertools import batched
+from typing import Any, Callable, Iterable
 
 from sph_backend.spotify.auth_api import SpotifyAuthApi
 from sph_backend.spotify.errors import SpotifyAuthError
@@ -29,8 +30,13 @@ class SpotifySessionClient:
                      json: dict[str, Any] | None = None) -> Any:
         return await self._request_web_api(method="DELETE", endpoint=endpoint, params=params, json=json)
 
-    async def get_paginated_items(self, endpoint: str, *, params: dict[str, Any] | None = None, limit: int = 20) \
-            -> list[dict[str, Any]]:
+    async def get_paginated_items(
+            self,
+            endpoint: str,
+            *,
+            params: dict[str, Any] | None = None,
+            limit: int = 20
+    ) -> list[dict[str, Any]]:
         if params is None:
             params = {}
         else:
@@ -49,6 +55,38 @@ class SpotifySessionClient:
                 offset += limit
 
         return items
+
+    async def post_in_chunks(
+            self,
+            endpoint: str,
+            *,
+            items: Iterable,
+            chunk_field_name: str,
+            chunk_size: int = 100,
+            params: dict[str, Any] | None = None
+    ) -> None:
+        for chunk in batched(items, chunk_size):
+            await self.post(
+                endpoint=endpoint,
+                params=params,
+                json={chunk_field_name: chunk}
+            )
+
+    async def delete_in_chunks(
+            self,
+            endpoint: str,
+            *,
+            items: Iterable,
+            chunk_field_name: str,
+            chunk_size: int = 100,
+            params: dict[str, Any] | None = None
+    ) -> None:
+        for chunk in batched(items, chunk_size):
+            await self.delete(
+                endpoint=endpoint,
+                params=params,
+                json={chunk_field_name: chunk}
+            )
 
     async def _request_web_api(
             self,
