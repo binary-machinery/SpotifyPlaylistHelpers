@@ -1,4 +1,5 @@
 from datetime import datetime
+from itertools import batched
 
 from sph_backend.spotify.models import SimplifiedPlaylist, Playlist, Album, Artist, Track
 from sph_backend.spotify.session_client import SpotifySessionClient
@@ -222,30 +223,23 @@ class SpotifyPlaylistService:
             limit=50
         )
 
-        track_uris = []
-        for i in range(0, len(items)):
-            track_i = items[i]["track"]
-
-            for j in range(i + 1, len(items)):
-                track_j = items[j]["track"]
-
-                if len(track_i["artists"]) != len(track_j["artists"]):
-                    continue
-
-                artists_i = set([artist["id"] for artist in track_i["artists"]])
-                artists_j = set([artist["id"] for artist in track_j["artists"]])
-                if artists_i != artists_j:
-                    continue
-
-                if track_i["name"] == track_j["name"]:
-                    release_date_i = self._parse_album_date(track_i["album"])
-                    release_date_j = self._parse_album_date(track_j["album"])
-                    if release_date_i < release_date_j:
-                        if track_i["uri"] not in track_uris:
-                            track_uris.append(track_i["uri"])
-                    else:
-                        if track_j["uri"] not in track_uris:
-                            track_uris.append(track_j["uri"])
+        duplicate_uris = {}  # use dict to keep order
+        track_index = {}
+        for item in items:
+            track = item["track"]
+            key = ":".join([artist["id"] for artist in track["artists"]])
+            key += ":" + track["name"]
+            if key not in track_index:
+                track_index[key] = track
+            else:
+                prev_track = track_index[key]
+                release_date_cur = self._parse_album_date(track["album"])
+                release_date_prev = self._parse_album_date(prev_track["album"])
+                if release_date_cur < release_date_prev:
+                    duplicate_uris[track["uri"]] = None
+                else:
+                    duplicate_uris[prev_track["uri"]] = None
+                    track_index[key] = track
 
         if result_playlist_id is None:
             # TODO: move playlist creation to a separate function
@@ -256,8 +250,7 @@ class SpotifyPlaylistService:
             result_playlist_id = result_json["id"]
 
         # TODO: move playlist write to a separate function
-        for i in range(0, len(track_uris), 100):
-            chunk = track_uris[i:i + 100]
+        for chunk in batched(duplicate_uris, 100):
             await self._spotify_session_client.post(
                 f"/playlists/{result_playlist_id}/items",
                 json={"uris": chunk}
