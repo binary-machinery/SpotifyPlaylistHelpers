@@ -79,7 +79,6 @@ Roadmap
 - [**Done**] Use Poetry
 - [**Done**] Rewrite with FastAPI
 - [**In Progress**] Configure AWS infrastructure
-- [**In Progress**] Add semantic versioning
 - [**TODO**] Configure CI/CD with GitHub Actions
 - [**TODO**] Fix "extract duplicates"
 - [**TODO**] Rewrite in Go
