@@ -28,8 +28,8 @@ resource "aws_vpc_security_group_ingress_rule" "application_dev_flask_from_maint
   security_group_id = aws_security_group.application_machine.id
   cidr_ipv4         = var.maintainer_machine_cidr
   ip_protocol       = "tcp"
-  from_port         = "3000"
-  to_port           = "3000"
+  from_port         = "8000"
+  to_port           = "8000"
 
   tags = {
     Name = "sph-${var.env}-application-flask-from-maintainer"
@@ -41,8 +41,8 @@ resource "aws_vpc_security_group_ingress_rule" "application_http_from_load_balan
   security_group_id            = aws_security_group.application_machine.id
   referenced_security_group_id = aws_security_group.load_balancer.id
   ip_protocol                  = "tcp"
-  from_port                    = "3000"
-  to_port                      = "3000"
+  from_port                    = "8000"
+  to_port                      = "8000"
 
   tags = {
     Name = "sph-${var.env}-application-http-from-load-balancer"
@@ -100,8 +100,8 @@ resource "aws_vpc_security_group_egress_rule" "load_balancer_http_to_application
   security_group_id            = aws_security_group.load_balancer.id
   referenced_security_group_id = aws_security_group.application_machine.id
   ip_protocol                  = "tcp"
-  from_port                    = "3000"
-  to_port                      = "3000"
+  from_port                    = "8000"
+  to_port                      = "8000"
 
   tags = {
     Name = "sph-${var.env}-load-balancer-http-to-application"

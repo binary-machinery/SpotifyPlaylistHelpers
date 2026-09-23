@@ -43,7 +43,7 @@ resource "aws_lb_target_group" "application" {
   name_prefix          = "sph-${substr(var.env, 0, 1)}-"
   vpc_id               = data.aws_vpc.default.id
   protocol             = "HTTP"
-  port                 = 3000
+  port                 = 8000
   deregistration_delay = 30
 
   health_check {

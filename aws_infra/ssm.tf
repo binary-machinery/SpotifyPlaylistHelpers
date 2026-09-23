@@ -1,7 +1,7 @@
-# Non-secret, environment-specific settings that config.json is rendered from. The
-# secrets alongside these (SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SERVER_SECRET)
+# Non-secret, environment-specific settings.
+# The secrets alongside these (SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SERVER_SECRET)
 # are SecureStrings put in by hand, deliberately outside Terraform so they stay out of
-# state. Parameter names match the placeholders in configs/config_template.json.
+# state. Parameter names match the placeholders in settings.env.example.
 
 resource "aws_ssm_parameter" "server_host" {
   name = "/sph/${var.env}/SERVER_HOST"
