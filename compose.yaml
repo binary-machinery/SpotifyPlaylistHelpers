@@ -2,6 +2,12 @@ services:
   spotify-playlist-helpers:
     build: .
     volumes:
-      - ./configs/config.json:/app/configs/config.json:ro
+      - ./settings.env:/app/settings.env:ro
+      - data:/app/data
     ports:
-      - "3000:3000"
+      - "8000:8000"
+    environment:
+      - USERS_DB_PATH=/app/data/users.sqlite
+
+volumes:
+  data:

@@ -1,7 +1,14 @@
+# WIP
 services:
   spotify-playlist-helpers:
     image: "${ECR_REPOSITORY_URL:?not set - copy .env.example to .env}:${IMAGE_TAG:-0.1-dev}"
     volumes:
-      - ./config.json:/app/configs/config.json:ro
+      - data:/app/data
     ports:
-      - "3000:3000"
+      - "8000:8000"
+    environment:
+      # TODO: get values from SSM
+      - USERS_DB_PATH=/app/data/users.sqlite
+
+volumes:
+  data:

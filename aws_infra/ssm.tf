@@ -1,5 +1,5 @@
 # Non-secret, environment-specific settings that config.json is rendered from. The
-# secrets alongside these (SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, FLASK_SECRET_KEY)
+# secrets alongside these (SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SERVER_SECRET)
 # are SecureStrings put in by hand, deliberately outside Terraform so they stay out of
 # state. Parameter names match the placeholders in configs/config_template.json.
 
