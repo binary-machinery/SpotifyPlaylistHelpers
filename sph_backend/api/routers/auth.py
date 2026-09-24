@@ -46,7 +46,7 @@ async def logout(request: Request, users_db: UsersDbDep) -> schemas.AuthStatus:
     user_id = request.session.get("user_id")
     request.session.clear()
     if user_id is not None and isinstance(user_id, str):
-        users_db.delete_user(user_id)
+        await users_db.delete_user(user_id)
     return schemas.AuthStatus(status="logged out")
 
 
@@ -81,7 +81,7 @@ async def auth_callback(request: Request, spotify_auth_api: SpotifyAuthApiDep, s
         access_token,
         refresh_token
     )
-    users_db.set_user(user)
+    await users_db.set_user(user)
     request.session["user_id"] = user.user_id
 
     return schemas.AuthStatus(status="authenticated")

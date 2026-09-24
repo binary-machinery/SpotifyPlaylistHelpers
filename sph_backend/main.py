@@ -13,7 +13,6 @@ from sph_backend.settings import get_settings
 from sph_backend.spotify.errors import SpotifyAuthError, SpotifyRateLimitError, SpotifyApiError
 from sph_backend.users import UsersDb
 
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -21,7 +20,7 @@ logger.setLevel(logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.users_db = UsersDb(users_db_path=get_settings().users_db_path)
-    app.state.users_db.create_schema()
+    await app.state.users_db.create_schema()
 
     async with httpx.AsyncClient() as client:
         app.state.http_client = client

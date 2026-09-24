@@ -2,8 +2,9 @@ import asyncio
 import logging
 import random
 from asyncio import TaskGroup, Semaphore
+from collections.abc import Callable, Awaitable, Iterable
 from itertools import batched
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from sph_backend.spotify.auth_api import SpotifyAuthApi
 from sph_backend.spotify.errors import SpotifyAuthError, SpotifyApiError
@@ -15,7 +16,7 @@ logger.setLevel(logging.DEBUG)
 
 class SpotifySessionClient:
     def __init__(self, spotify_web_api: SpotifyWebApi, spotify_auth_api: SpotifyAuthApi,
-                 access_token: str, refresh_token: str, on_token_refreshed: Callable[[str, str], None]):
+                 access_token: str, refresh_token: str, on_token_refreshed: Callable[[str, str], Awaitable[None]]):
         self._web_api = spotify_web_api
         self._auth_api = spotify_auth_api
         self._access_token = access_token

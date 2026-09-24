@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated
 
 import httpx
@@ -5,10 +6,10 @@ from fastapi import Depends, HTTPException
 from starlette.requests import Request
 
 from sph_backend.settings import Settings, get_settings
-from sph_backend.spotify.web_api import SpotifyWebApi
 from sph_backend.spotify.auth_api import SpotifyAuthApi
-from sph_backend.spotify.session_client import SpotifySessionClient
 from sph_backend.spotify.service import SpotifyPlaylistService
+from sph_backend.spotify.session_client import SpotifySessionClient
+from sph_backend.spotify.web_api import SpotifyWebApi
 from sph_backend.users import UsersDb, User
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -28,13 +29,13 @@ def get_users_db(request: Request) -> UsersDb:
 UsersDbDep = Annotated[UsersDb, Depends(get_users_db)]
 
 
-def get_current_user(request: Request, users_db: UsersDbDep) -> User:
+async def get_current_user(request: Request, users_db: UsersDbDep) -> User:
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     if not isinstance(user_id, str):
         raise HTTPException(status_code=401, detail="Incorrect user id")
-    user = users_db.get_user(user_id)
+    user = await users_db.get_user(user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
@@ -59,13 +60,13 @@ SpotifyWebApiDep = Annotated[SpotifyWebApi, Depends(get_spotify_web_api)]
 
 async def get_spotify_session_client(spotify_web_api: SpotifyWebApiDep, spotify_auth_api: SpotifyAuthApiDep,
                                      users_db: UsersDbDep, current_user: CurrentUserDep) -> SpotifySessionClient:
-    def on_token_refreshed(access_token: str, refresh_token: str):
+    async def on_token_refreshed(access_token: str, refresh_token: str):
         user = User(
             user_id=current_user.user_id,
             access_token=access_token,
             refresh_token=refresh_token
         )
-        users_db.set_user(user)
+        await users_db.set_user(user)
 
     return SpotifySessionClient(
         spotify_web_api=spotify_web_api,
