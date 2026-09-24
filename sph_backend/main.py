@@ -14,6 +14,10 @@ from sph_backend.spotify.errors import SpotifyAuthError, SpotifyRateLimitError, 
 from sph_backend.users import UsersDb
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.users_db = UsersDb(users_db_path=get_settings().users_db_path)
@@ -37,7 +41,7 @@ app.include_router(misc.router)
 
 @app.exception_handler(SpotifyAuthError)
 async def handle_spotify_auth_error(request: Request, exc: SpotifyAuthError):
-    logging.warning("Spotify authentication error: %s", exc)
+    logger.warning("Spotify authentication error: %s", exc)
     return JSONResponse(
         status_code=401,
         content={"detail": "Spotify authentication failed, try to reauthenticate"}
@@ -46,7 +50,7 @@ async def handle_spotify_auth_error(request: Request, exc: SpotifyAuthError):
 
 @app.exception_handler(SpotifyRateLimitError)
 async def handle_spotify_rate_limit_error(request: Request, exc: SpotifyRateLimitError):
-    logging.error("Spotify rate limit error: %s", exc)
+    logger.error("Spotify rate limit error: %s", exc)
     return JSONResponse(
         status_code=429,
         content={"detail": "Spotify rate limit, try later"},
@@ -67,7 +71,7 @@ async def handle_spotify_api_error(request: Request, exc: SpotifyApiError):
     else:
         status_code = exc.status_code
         log_level = logging.WARNING
-    logging.log(log_level, "Spotify API error: %s", exc)
+    logger.log(log_level, "Spotify API error: %s", exc)
     return JSONResponse(
         status_code=status_code,
         content={"detail": "Spotify API error"}

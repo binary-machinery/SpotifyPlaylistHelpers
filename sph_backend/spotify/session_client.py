@@ -1,9 +1,16 @@
+import asyncio
+import logging
+import random
+from asyncio import TaskGroup, Semaphore
 from itertools import batched
 from typing import Any, Callable, Iterable
 
 from sph_backend.spotify.auth_api import SpotifyAuthApi
-from sph_backend.spotify.errors import SpotifyAuthError
+from sph_backend.spotify.errors import SpotifyAuthError, SpotifyApiError
 from sph_backend.spotify.web_api import SpotifyWebApi
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class SpotifySessionClient:
@@ -79,14 +86,47 @@ class SpotifySessionClient:
             items: Iterable,
             chunk_field_name: str,
             chunk_size: int = 100,
-            params: dict[str, Any] | None = None
+            params: dict[str, Any] | None = None,
+            max_parallel_requests: int = 5
     ) -> None:
-        for chunk in batched(items, chunk_size):
-            await self.delete(
-                endpoint=endpoint,
-                params=params,
-                json={chunk_field_name: chunk}
-            )
+        # Spotify might respond with 502 on concurrent playlist updates.
+        # Limit requests and repeat if failed. Deletion is idempotent.
+        semaphore = Semaphore(max_parallel_requests)
+
+        async def _delete_chunk(chunk, chunk_index) -> None:
+            async with semaphore:
+                max_retries = 2
+                attempt = 0
+                while True:
+                    try:
+                        await self.delete(
+                            endpoint=endpoint,
+                            params=params,
+                            json={chunk_field_name: chunk}
+                        )
+                        break
+                    except SpotifyApiError as e:
+                        if e.status_code < 500:
+                            raise
+
+                        logger.debug("Spotify API error for concurrent deletion, chunk: %i,  attempt: %i, %s",
+                                     chunk_index, attempt, e)
+                        if attempt >= max_retries:
+                            logger.warning("Failed to delete a chunk after retries, chunk: %i,  attempt: %i, %s",
+                                           chunk_index, attempt, e)
+                            raise
+
+                        # wait for random time from 0 to max delay
+                        # exponential backoff for max delay: 50ms, 100ms, 200ms
+                        await asyncio.sleep(random.uniform(0, 0.05 * pow(2, attempt)))
+                        attempt += 1
+
+        try:
+            async with TaskGroup() as tg:
+                for chunk_index, chunk in enumerate(batched(items, chunk_size)):
+                    tg.create_task(_delete_chunk(chunk, chunk_index))
+        except ExceptionGroup as eg:
+            raise eg.exceptions[0] from eg
 
     async def _request_web_api(
             self,
