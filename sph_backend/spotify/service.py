@@ -155,12 +155,10 @@ class SpotifyPlaylistService:
             for track_json in tracks_json:
                 track_uris.append(track_json["uri"])
 
-        for i in range(0, len(track_uris), 100):
-            chunk = track_uris[i:i + 100]
-            await self._spotify_session_client.post(
-                f"/playlists/{playlist_id}/items",
-                json={"uris": chunk}
-            )
+        await self._write_tracks_to_playlist(
+            playlist_id=playlist_id,
+            uris=track_uris
+        )
 
     async def subtract_playlist(self, playlist_id1: str, playlist_id2: str) -> None:
         # TODO: return amount of deleted tracks
