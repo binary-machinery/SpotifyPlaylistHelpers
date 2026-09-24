@@ -1,3 +1,4 @@
+from asyncio import TaskGroup
 from datetime import datetime
 from typing import Any
 
@@ -27,19 +28,27 @@ class SpotifyPlaylistService:
         return playlists
 
     async def get_playlist(self, playlist_id: str) -> Playlist:
-        playlist_json = await self._spotify_session_client.get(
-            f"/playlists/{playlist_id}",
-            params={
-                "fields": "id,name,owner(display_name)"
-            }
-        )
-        tracks_json = await self._spotify_session_client.get_paginated_items(
-            endpoint=f"/playlists/{playlist_id}/items",
-            params={
-                "fields": "total,items(track(id,uri,name,album(id,name,release_date,release_date_precision,external_urls(spotify)),artists(id,name,external_urls(spotify))))"
-            },
-            limit=50
-        )
+        async with TaskGroup() as tg:
+            playlist_task = tg.create_task(
+                self._spotify_session_client.get(
+                    f"/playlists/{playlist_id}",
+                    params={
+                        "fields": "id,name,owner(display_name)"
+                    }
+                )
+            )
+            tracks_task = tg.create_task(
+                self._spotify_session_client.get_paginated_items(
+                    endpoint=f"/playlists/{playlist_id}/items",
+                    params={
+                        "fields": "total,items(track(id,uri,name,album(id,name,release_date,release_date_precision,external_urls(spotify)),artists(id,name,external_urls(spotify))))"
+                    },
+                    limit=50
+                )
+            )
+
+        playlist_json = playlist_task.result()
+        tracks_json = tracks_task.result()
 
         tracks = []
         for track_meta_json in tracks_json:
