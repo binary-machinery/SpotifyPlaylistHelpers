@@ -80,6 +80,7 @@ class SpotifySessionClient:
             chunk_size: int = 100,
             params: dict[str, Any] | None = None
     ) -> None:
+        # run in sequence to keep the correct order and avoid concurrent playlist modifications
         for chunk in batched(items, chunk_size):
             await self.post(
                 endpoint=endpoint,
