@@ -1,14 +1,15 @@
 import asyncio
 import logging
 import random
-from asyncio import TaskGroup, Semaphore
 from collections.abc import Callable, Awaitable, Iterable
+from functools import partial
 from itertools import batched
 from typing import Any
 
 from sph_backend.spotify.auth_api import SpotifyAuthApi
 from sph_backend.spotify.errors import SpotifyAuthError, SpotifyApiError
 from sph_backend.spotify.web_api import SpotifyWebApi
+from sph_backend.utils.concurrency import run_in_parallel
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -43,24 +44,30 @@ class SpotifySessionClient:
             endpoint: str,
             *,
             params: dict[str, Any] | None = None,
-            limit: int = 20
+            limit: int = 20,  # max limit is 50
+            max_parallel_requests: int = 10
     ) -> list[dict[str, Any]]:
         if params is None:
             params = {}
         else:
             params = params.copy()
+
         params["limit"] = limit
-        has_data = True
-        offset = 0
-        items = []
-        while has_data:
-            params["offset"] = offset
-            json = await self.get(endpoint, params=params)
-            items.extend(json["items"])
-            has_data = False
-            if json["total"] > offset + limit:
-                has_data = True
-                offset += limit
+        params["offset"] = 0
+        response_json = await self.get(endpoint, params=params)
+
+        items = [*response_json["items"]]
+
+        if response_json["total"] > limit:
+            jobs = []
+            for offset in range(limit, response_json["total"], limit):
+                jobs.append(
+                    partial(self.get, endpoint=endpoint, params={**params, "offset": offset})
+                )
+            results = await run_in_parallel(jobs, max_parallel=max_parallel_requests)
+
+            for res in results:
+                items.extend(res["items"])
 
         return items
 
@@ -92,42 +99,40 @@ class SpotifySessionClient:
     ) -> None:
         # Spotify might respond with 502 on concurrent playlist updates.
         # Limit requests and repeat if failed. Deletion is idempotent.
-        semaphore = Semaphore(max_parallel_requests)
 
-        async def _delete_chunk(chunk, chunk_index) -> None:
-            async with semaphore:
-                max_retries = 2
-                attempt = 0
-                while True:
-                    try:
-                        await self.delete(
-                            endpoint=endpoint,
-                            params=params,
-                            json={chunk_field_name: chunk}
-                        )
-                        break
-                    except SpotifyApiError as e:
-                        if e.status_code < 500:
-                            raise
+        async def delete_chunk(chunk_, chunk_index_) -> None:
+            max_retries = 2
+            attempt = 0
+            while True:
+                try:
+                    await self.delete(
+                        endpoint=endpoint,
+                        params=params,
+                        json={chunk_field_name: chunk_}
+                    )
+                    break
+                except SpotifyApiError as e:
+                    if e.status_code < 500:
+                        raise
 
-                        logger.debug("Spotify API error for concurrent deletion, chunk: %i,  attempt: %i, %s",
-                                     chunk_index, attempt, e)
-                        if attempt >= max_retries:
-                            logger.warning("Failed to delete a chunk after retries, chunk: %i,  attempt: %i, %s",
-                                           chunk_index, attempt, e)
-                            raise
+                    logger.debug("Spotify API error for concurrent deletion, chunk: %i,  attempt: %i, %s",
+                                 chunk_index_, attempt, e)
+                    if attempt >= max_retries:
+                        logger.warning("Failed to delete a chunk after retries, chunk: %i,  attempt: %i, %s",
+                                       chunk_index_, attempt, e)
+                        raise
 
-                        # wait for random time from 0 to max delay
-                        # exponential backoff for max delay: 50ms, 100ms, 200ms
-                        await asyncio.sleep(random.uniform(0, 0.05 * pow(2, attempt)))
-                        attempt += 1
+                    # wait for random time from 0 to max delay
+                    # exponential backoff for max delay: 50ms, 100ms, 200ms
+                    await asyncio.sleep(random.uniform(0, 0.05 * pow(2, attempt)))
+                    attempt += 1
 
-        try:
-            async with TaskGroup() as tg:
-                for chunk_index, chunk in enumerate(batched(items, chunk_size)):
-                    tg.create_task(_delete_chunk(chunk, chunk_index))
-        except ExceptionGroup as eg:
-            raise eg.exceptions[0] from eg
+        jobs = []
+        for chunk_index, chunk in enumerate(batched(items, chunk_size)):
+            jobs.append(
+                partial(delete_chunk, chunk, chunk_index)
+            )
+        await run_in_parallel(jobs, max_parallel=max_parallel_requests)
 
     async def _request_web_api(
             self,
@@ -159,4 +164,4 @@ class SpotifySessionClient:
         auth_response_json = await self._auth_api.refresh_user_token(self._refresh_token)
         self._access_token = auth_response_json["access_token"]
         self._refresh_token = auth_response_json.get("refresh_token", self._refresh_token)
-        self._on_token_refreshed(self._access_token, self._refresh_token)
+        await self._on_token_refreshed(self._access_token, self._refresh_token)
