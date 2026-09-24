@@ -1,3 +1,4 @@
+import inspect
 import logging
 from contextlib import asynccontextmanager
 
@@ -13,8 +14,9 @@ from sph_backend.settings import get_settings
 from sph_backend.spotify.errors import SpotifyAuthError, SpotifyRateLimitError, SpotifyApiError
 from sph_backend.users import UsersDb
 
+logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 @asynccontextmanager
@@ -39,7 +41,8 @@ app.include_router(misc.router)
 
 
 @app.exception_handler(SpotifyAuthError)
-async def handle_spotify_auth_error(request: Request, exc: SpotifyAuthError):
+def handle_spotify_auth_error(request: Request, exc: SpotifyAuthError):
+    logger.debug("Enter handler for SpotifyAuthError")
     logger.warning("Spotify authentication error: %s", exc)
     return JSONResponse(
         status_code=401,
@@ -48,7 +51,8 @@ async def handle_spotify_auth_error(request: Request, exc: SpotifyAuthError):
 
 
 @app.exception_handler(SpotifyRateLimitError)
-async def handle_spotify_rate_limit_error(request: Request, exc: SpotifyRateLimitError):
+def handle_spotify_rate_limit_error(request: Request, exc: SpotifyRateLimitError):
+    logger.debug("Enter handler for SpotifyRateLimitError: %s", exc)
     logger.error("Spotify rate limit error: %s", exc)
     return JSONResponse(
         status_code=429,
@@ -60,7 +64,8 @@ async def handle_spotify_rate_limit_error(request: Request, exc: SpotifyRateLimi
 
 
 @app.exception_handler(SpotifyApiError)
-async def handle_spotify_api_error(request: Request, exc: SpotifyApiError):
+def handle_spotify_api_error(request: Request, exc: SpotifyApiError):
+    logger.debug("Enter handler for SpotifyApiError: %s", exc)
     if exc.status_code == 404:
         status_code = 404
         log_level = logging.INFO
@@ -70,10 +75,30 @@ async def handle_spotify_api_error(request: Request, exc: SpotifyApiError):
     else:
         status_code = exc.status_code
         log_level = logging.WARNING
-    logger.log(log_level, "Spotify API error: %s", exc)
+    logger.log(log_level, exc)
     return JSONResponse(
         status_code=status_code,
         content={"detail": "Spotify API error"}
+    )
+
+
+@app.exception_handler(ExceptionGroup)
+async def handle_exception_group(request: Request, exc: ExceptionGroup):
+    logger.debug("Enter handler for ExceptionGroup: %s", exc)
+    inner_exc = exc
+    while isinstance(inner_exc, ExceptionGroup):
+        inner_exc = inner_exc.exceptions[0]
+    for cls in type(inner_exc).__mro__:
+        if cls in request.app.exception_handlers:
+            res = request.app.exception_handlers[cls](request, inner_exc)
+            if inspect.isawaitable(res):
+                return await res
+            return res
+
+    logger.error("Unhandled exception in ExceptionGroup", exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"}
     )
 
 
