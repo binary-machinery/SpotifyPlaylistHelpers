@@ -1,13 +1,14 @@
 import asyncio
 import logging
 import random
+from asyncio import Lock
 from collections.abc import Callable, Awaitable, Iterable
 from functools import partial
 from itertools import batched
 from typing import Any
 
 from sph_backend.spotify.auth_api import SpotifyAuthApi
-from sph_backend.spotify.errors import SpotifyAuthError, SpotifyApiError
+from sph_backend.spotify.errors import SpotifyAuthError, SpotifyApiError, SpotifyRateLimitError
 from sph_backend.spotify.web_api import SpotifyWebApi
 from sph_backend.utils.concurrency import run_in_parallel
 
@@ -23,6 +24,7 @@ class SpotifySessionClient:
         self._access_token = access_token
         self._refresh_token = refresh_token
         self._on_token_refreshed = on_token_refreshed
+        self._token_refresh_lock = Lock()
 
     async def get(self, endpoint: str, *, params: dict[str, Any] | None = None) -> Any:
         return await self._request_web_api(method="GET", endpoint=endpoint, params=params)
@@ -142,27 +144,55 @@ class SpotifySessionClient:
             params: dict[str, Any] | None = None,
             json: dict[str, Any] | None = None
     ) -> Any:
-        try:
-            return await self._web_api.request(
-                method=method,
-                endpoint=endpoint,
-                access_token=self._access_token,
-                params=params,
-                json=json
-            )
-        except SpotifyAuthError:
-            # refresh token and try again
-            await self._refresh_user_token()
-            return await self._web_api.request(
-                method=method,
-                endpoint=endpoint,
-                access_token=self._access_token,
-                params=params,
-                json=json
-            )
+        auth_retry_attempt = 0
+        max_auth_retry_attempts = 1
+        rate_limit_retry_attempt = 0
+        max_rate_limit_retry_attempts = 3
+        while True:
+            try:
+                return await self._web_api.request(
+                    method=method,
+                    endpoint=endpoint,
+                    access_token=self._access_token,
+                    params=params,
+                    json=json
+                )
+
+            except SpotifyAuthError:
+                if auth_retry_attempt < max_auth_retry_attempts:
+                    logger.info("Token expired, refresh and retry (%i attempts left)",
+                                max_auth_retry_attempts - auth_retry_attempt)
+                    auth_retry_attempt += 1
+                    await self._refresh_user_token()
+                    continue
+                else:
+                    logger.warning("Auth error after token refresh, no retries left")
+                    raise
+
+            except SpotifyRateLimitError as e:
+                if rate_limit_retry_attempt < max_rate_limit_retry_attempts:
+                    if e.retry_after is not None:
+                        retry_after = float(e.retry_after)
+                    else:
+                        retry_after = 1 * pow(2, rate_limit_retry_attempt)
+                    logger.info("Hit rate limit, wait for %d and retry (%i attempts left)",
+                                retry_after, max_rate_limit_retry_attempts - rate_limit_retry_attempt)
+                    rate_limit_retry_attempt += 1
+                    await asyncio.sleep(retry_after)
+                    continue
+                else:
+                    logger.warning("Hit rate limit, no retries left")
+                    raise
 
     async def _refresh_user_token(self):
-        auth_response_json = await self._auth_api.refresh_user_token(self._refresh_token)
-        self._access_token = auth_response_json["access_token"]
-        self._refresh_token = auth_response_json.get("refresh_token", self._refresh_token)
-        await self._on_token_refreshed(self._access_token, self._refresh_token)
+        cur_token = self._access_token
+        async with self._token_refresh_lock:
+            if cur_token != self._access_token:
+                logger.debug("Token has been refreshed in a different concurrent call")
+                return
+
+            logger.debug("Refreshing user token")
+            auth_response_json = await self._auth_api.refresh_user_token(self._refresh_token)
+            self._access_token = auth_response_json["access_token"]
+            self._refresh_token = auth_response_json.get("refresh_token", self._refresh_token)
+            await self._on_token_refreshed(self._access_token, self._refresh_token)

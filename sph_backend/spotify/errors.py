@@ -6,9 +6,15 @@ class SpotifyApiError(Exception):
         self.body = body
         super().__init__(f"Spotify API Error: {status_code}: {body}")
 
+    def __str__(self):
+        return f"Spotify API Error: {self.status_code}: {self.body}"
+
 
 class SpotifyAuthError(SpotifyApiError):
     """Token exchange or refresh failed; the user must re-authenticate."""
+
+    def __str__(self):
+        return f"Spotify Auth Error: {self.status_code}: {self.body}"
 
 
 class SpotifyRateLimitError(SpotifyApiError):
@@ -17,3 +23,6 @@ class SpotifyRateLimitError(SpotifyApiError):
     def __init__(self, status_code: int, body: str, retry_after: str | None = None):
         self.retry_after = retry_after
         super().__init__(status_code, body)
+
+    def __str__(self):
+        return f"Spotify Rate Limit Error: {self.status_code}: {self.body}: RetryAfter={self.retry_after}"
