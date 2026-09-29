@@ -1,10 +1,12 @@
 from asyncio import TaskGroup
 from datetime import datetime
+from functools import partial
 from typing import Any
 
 from sph_backend.spotify.errors import SpotifyApiError
 from sph_backend.spotify.models import SimplifiedPlaylist, Playlist, Album, Artist, Track
 from sph_backend.spotify.session_client import SpotifySessionClient
+from sph_backend.utils.concurrency import run_in_parallel
 
 
 class SpotifyPlaylistService:
@@ -142,17 +144,24 @@ class SpotifyPlaylistService:
             albums.append(album)
 
         albums.sort(key=lambda x: x.release_date)
-        track_uris = []
+
+        album_jobs = []
         for album in albums:
-            tracks_json = await self._spotify_session_client.get_paginated_items(
-                f"/albums/{album.id}/tracks",
-                params={
-                    "market": "FI"
-                },
-                limit=50
+            album_jobs.append(
+                partial(
+                    self._spotify_session_client.get_paginated_items,
+                    endpoint=f"/albums/{album.id}/tracks",
+                    params={
+                        "market": "FI"
+                    },
+                    limit=50
+                )
             )
 
-            for track_json in tracks_json:
+        album_results = await run_in_parallel(album_jobs, max_parallel=20)
+        track_uris = []
+        for r in album_results:
+            for track_json in r:
                 track_uris.append(track_json["uri"])
 
         await self._write_tracks_to_playlist(
