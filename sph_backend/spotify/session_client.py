@@ -174,8 +174,9 @@ class SpotifySessionClient:
                     if e.retry_after is not None:
                         retry_after = float(e.retry_after)
                     else:
-                        retry_after = 1 * pow(2, rate_limit_retry_attempt)
-                    logger.info("Hit rate limit, wait for %d and retry (%i attempts left)",
+                        retry_after = 1.0 * pow(2, rate_limit_retry_attempt)
+                    retry_after += random.uniform(0, 1)  # jitter
+                    logger.info("Hit rate limit, wait for %.2f and retry (%i attempts left)",
                                 retry_after, max_rate_limit_retry_attempts - rate_limit_retry_attempt)
                     rate_limit_retry_attempt += 1
                     await asyncio.sleep(retry_after)
