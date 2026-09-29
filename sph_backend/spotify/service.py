@@ -1,4 +1,5 @@
 from asyncio import TaskGroup
+from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from typing import Any
@@ -93,35 +94,53 @@ class SpotifyPlaylistService:
 
     async def get_new_releases_for_playlist(self, playlist_id: str):
         latest_dates = await self._get_latest_song_by_artist_for_playlist(playlist_id)
-        result = {}
-        for artist, latest_song_date in latest_dates.items():
+
+        @dataclass
+        class ArtistReleases:
+            artist: Artist
+            latest_song_date: datetime
+            albums: list[Album]
+
+        async def get_artist_releases(artist_, latest_song_date_) -> ArtistReleases:
             items = await self._spotify_session_client.get_paginated_items(
-                endpoint=f"/artists/{artist.id}/albums",
+                endpoint=f"/artists/{artist_.id}/albums",
                 params={
                     "market": "FI",
                     "include_groups": "album,single"
                 },
                 limit=50
             )
-
+            albums: list[Album] = []
             for album_json in items:
-                release_date = self._parse_album_date(album_json)
-                if release_date <= latest_song_date:
-                    continue
-
-                album = Album(
-                    id=album_json["id"],
-                    name=album_json["name"],
-                    release_date=release_date,
-                    link=album_json["external_urls"]["spotify"]
+                albums.append(
+                    Album(
+                        id=album_json["id"],
+                        name=album_json["name"],
+                        release_date=SpotifyPlaylistService._parse_album_date(album_json),
+                        link=album_json["external_urls"]["spotify"]
+                    )
                 )
-                if artist not in result:
-                    result[artist] = []
-                result[artist].append(album)
+            return ArtistReleases(artist_, latest_song_date_, albums)
 
-        for artist_result in result.values():
+        jobs = []
+        for artist, latest_song_date in latest_dates.items():
+            jobs.append(
+                partial(get_artist_releases, artist, latest_song_date)
+            )
+
+        results = await run_in_parallel(jobs, max_parallel=10)
+        new_releases = {}
+        for artist_releases in results:
+            for album in artist_releases.albums:
+                if album.release_date <= artist_releases.latest_song_date:
+                    continue
+                if artist_releases.artist not in new_releases:
+                    new_releases[artist_releases.artist] = []
+                new_releases[artist_releases.artist].append(album)
+
+        for artist_result in new_releases.values():
             artist_result.sort(key=lambda album: album.release_date)
-        return latest_dates, result
+        return latest_dates, new_releases
 
     async def add_artist_to_playlist(self, playlist_id: str, artist_id: str) -> None:
         albums_json = await self._spotify_session_client.get_paginated_items(
