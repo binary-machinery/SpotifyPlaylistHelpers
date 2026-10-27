@@ -105,7 +105,6 @@ class SpotifyPlaylistService:
             items = await self._spotify_session_client.get_paginated_items(
                 endpoint=f"/artists/{artist_.id}/albums",
                 params={
-                    "market": "FI",
                     "include_groups": "album,single"
                 },
                 limit=50
@@ -146,7 +145,6 @@ class SpotifyPlaylistService:
         albums_json = await self._spotify_session_client.get_paginated_items(
             endpoint=f"/artists/{artist_id}/albums",
             params={
-                "market": "FI",
                 "include_groups": "album,single"
             },
             limit=20
@@ -170,9 +168,6 @@ class SpotifyPlaylistService:
                 partial(
                     self._spotify_session_client.get_paginated_items,
                     endpoint=f"/albums/{album.id}/tracks",
-                    params={
-                        "market": "FI"
-                    },
                     limit=50
                 )
             )
