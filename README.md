@@ -10,7 +10,6 @@ improving it with modern backend practices and technologies for infrastructure a
 Roadmap
 --------------
 
-- [**Done**] Use Poetry
 - [**Done**] Rewrite with FastAPI
 - [**In Progress**] Configure AWS infrastructure
 - [**TODO**] Configure CI/CD with GitHub Actions
@@ -54,8 +53,8 @@ have reviewed it, use "Subtract a playlist from a playlist" to remove those trac
 `POST /playlists/{playlist_id}/extract-duplicates`
 
 The same, for tracks that look like duplicates of each other (same title, same artists), gathering the earlier-released
-copy of each pair into `<playlist>-duplicates`, or into `result_playlist_id`. Currently broken: the artist
-comparison is a no-op, so tracks sharing a title and artist count are flagged regardless of the actual artists.
+copy of each pair into `<playlist>-duplicates`, or into `result_playlist_id`. Once you
+have reviewed it, use "Subtract a playlist from a playlist" to remove those tracks from the original.
 
 ### Other endpoints
 
