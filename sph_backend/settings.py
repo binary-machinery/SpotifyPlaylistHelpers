@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import SecretStr, PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     auth_redirect_endpoint: str = "/auth-callback"
     spotify_client_id: str
     spotify_client_secret: SecretStr
+    max_spotify_concurrent_api_calls: PositiveInt = 30
     users_db_path: str = "users.sqlite"
 
     @property

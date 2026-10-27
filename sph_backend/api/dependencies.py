@@ -50,8 +50,8 @@ async def get_spotify_auth_api(http_client: HttpClientDep, settings: SettingsDep
 SpotifyAuthApiDep = Annotated[SpotifyAuthApi, Depends(get_spotify_auth_api)]
 
 
-async def get_spotify_web_api(http_client: HttpClientDep) -> SpotifyWebApi:
-    return SpotifyWebApi(http_client=http_client)  # stateless wrapper
+async def get_spotify_web_api(request: Request) -> SpotifyWebApi:
+    return request.app.state.spotify_web_api
 
 
 SpotifyWebApiDep = Annotated[SpotifyWebApi, Depends(get_spotify_web_api)]

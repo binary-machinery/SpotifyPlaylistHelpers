@@ -12,6 +12,7 @@ from starlette.responses import JSONResponse
 from sph_backend.api.routers import auth, playlists, misc
 from sph_backend.settings import get_settings
 from sph_backend.spotify.errors import SpotifyAuthError, SpotifyRateLimitError, SpotifyApiError
+from sph_backend.spotify.web_api import SpotifyWebApi
 from sph_backend.users import UsersDb
 
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -21,11 +22,15 @@ logger.setLevel(logging.DEBUG)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.users_db = UsersDb(users_db_path=get_settings().users_db_path)
+    settings = get_settings()
+
+    app.state.users_db = UsersDb(users_db_path=settings.users_db_path)
     await app.state.users_db.create_schema()
 
-    async with httpx.AsyncClient() as client:
+    limits = httpx.Limits(max_keepalive_connections=settings.max_spotify_concurrent_api_calls)
+    async with httpx.AsyncClient(limits=limits) as client:
         app.state.http_client = client
+        app.state.spotify_web_api = SpotifyWebApi(http_client=client, settings=settings)
         yield
 
 
