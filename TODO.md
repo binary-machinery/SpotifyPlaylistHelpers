@@ -19,22 +19,8 @@ BUGS
     match. Fall back to comparing artist names when the id is None.
 
 
-ROBUSTNESS
-----------
-
-[ ] No rate-limit handling
-    get_new_releases_for_playlist issues one paginated album fetch per artist
-    in the playlist - hundreds of sequential requests for a large playlist -
-    with no 429 / Retry-After backoff and no caching. This will get throttled.
-    Partially mitigated: a 429 is now surfaced to the client as a 429 with
-    the Retry-After header (web_api.py:29, main.py:47), but nothing retries.
-
-
 CLEANUP
 -------
-
-[ ] market: "FI" is hardcoded in three places - belongs in settings.
-    sph_backend/spotify/service.py:87, 116, 138
 
 [ ] _get_latest_song_by_artist_for_playlist keys off artists[0] and the
     track's album date, so a compilation or reissue inflates the "latest"
